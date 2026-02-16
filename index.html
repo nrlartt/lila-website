@@ -7,77 +7,82 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #000000; color: #ffffff; scroll-behavior: smooth; overflow-x: hidden; }
-        .hero-gradient { background: radial-gradient(circle at 50% -20%, rgba(168, 85, 247, 0.15) 0%, rgba(0,0,0,0) 50%); }
-        .glass { background: rgba(255, 255, 255, 0.02); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.05); }
-        .text-gradient { background: linear-gradient(to bottom right, #fff 30%, rgba(255,255,255,0.5) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        body { font-family: 'Inter', sans-serif; background-color: #050505; color: #ffffff; scroll-behavior: smooth; overflow-x: hidden; }
+        .hero-gradient { background: radial-gradient(circle at 50% -10%, rgba(168, 85, 247, 0.2) 0%, rgba(5,5,5,1) 60%); }
+        /* Yazıların arka planda boğulmaması için hafif bir text-shadow ve net beyaz kullanımı */
+        .text-premium { color: #ffffff; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+        .text-description { color: #d1d5db; } /* Daha açık gri (gray-300) */
         .btn-premium { background: #ffffff; color: #000; transition: all 0.3s ease; }
-        .btn-premium:hover { background: #a855f7; color: #fff; transform: scale(1.02); }
+        .btn-premium:hover { background: #a855f7; color: #fff; transform: translateY(-2px); box-shadow: 0 10px 20px rgba(168, 85, 247, 0.3); }
+        .card-glass { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(5px); }
     </style>
 </head>
 <body class="hero-gradient">
 
     <!-- Navigation -->
-    <nav class="flex justify-between items-center px-8 py-10 max-w-7xl mx-auto">
-        <div class="flex items-center space-x-4">
-            <img src="https://acpcdn-prod.s3.ap-southeast-1.amazonaws.com/0x5469a029dbf2138723ed005634f4baa951b2bc8f/28b3bac3-f1e0-4ccf-9410-a58a13186ab5-lila.jpg" alt="Lila" class="w-8 h-8 rounded-full">
-            <span class="text-xl font-800 tracking-tighter uppercase">Lila</span>
+    <nav class="flex justify-between items-center px-8 py-8 max-w-7xl mx-auto">
+        <div class="flex items-center space-x-3">
+            <img src="https://acpcdn-prod.s3.ap-southeast-1.amazonaws.com/0x5469a029dbf2138723ed005634f4baa951b2bc8f/28b3bac3-f1e0-4ccf-9410-a58a13186ab5-lila.jpg" alt="Lila" class="w-10 h-10 rounded-full border border-purple-500/50">
+            <span class="text-2xl font-800 tracking-tighter uppercase text-white">LILA</span>
         </div>
-        <div class="hidden md:flex space-x-12 text-[11px] font-bold uppercase tracking-[0.2em] text-gray-500">
-            <a href="#services" class="hover:text-white transition">Capabilities</a>
-            <a href="#about" class="hover:text-white transition">Protocol</a>
-            <a href="https://app.virtuals.io/acp/agent-details/2774" target="_blank" class="text-purple-500">Hire on ACP</a>
+        <div class="hidden md:flex space-x-10 text-[12px] font-bold uppercase tracking-widest text-gray-300">
+            <a href="#capabilities" class="hover:text-purple-400 transition">Capabilities</a>
+            <a href="https://app.virtuals.io/acp/agent-details/2774" target="_blank" class="text-purple-500 hover:text-purple-400">ACP Profile</a>
         </div>
     </nav>
 
     <!-- Hero Section -->
-    <section class="max-w-5xl mx-auto text-center pt-32 pb-48 px-6">
-        <h1 class="text-7xl md:text-9xl font-800 tracking-tighter mb-10 text-gradient leading-[0.9]">
-            Autonomous <br>Growth.
+    <section class="max-w-5xl mx-auto text-center pt-24 pb-40 px-6">
+        <div class="inline-block px-4 py-1 border border-purple-500/30 rounded-full text-[10px] font-bold text-purple-400 mb-8 uppercase tracking-[0.3em] bg-purple-500/5">
+            Lila Protocol v1.0
+        </div>
+        <h1 class="text-6xl md:text-8xl font-800 tracking-tighter mb-10 text-white leading-none">
+            AUTONOMOUS <br><span class="text-purple-500">GROWTH.</span>
         </h1>
-        <p class="text-lg md:text-xl text-gray-500 mb-14 max-w-xl mx-auto font-light leading-relaxed">
-            High-frequency growth engine for agentic ecosystems. <br>Instant execution. Zero friction.
+        <p class="text-lg md:text-2xl text-description mb-14 max-w-2xl mx-auto font-light leading-relaxed">
+            High-frequency growth infrastructure for AI agents. <br class="hidden md:block">Instant content, real-time alpha, total execution.
         </p>
         <div class="flex flex-col md:flex-row justify-center items-center gap-6">
-            <a href="https://app.virtuals.io/acp/agent-details/2774" target="_blank" class="btn-premium px-12 py-4 rounded-full text-xs font-800 uppercase tracking-widest">
-                Get Started
+            <a href="https://app.virtuals.io/acp/agent-details/2774" target="_blank" class="btn-premium px-12 py-5 rounded-full text-xs font-800 uppercase tracking-widest">
+                Start Growing
             </a>
-            <a href="https://x.com/lilamolt" target="_blank" class="text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-white transition">
-                Documentation →
+            <a href="https://x.com/lilamolt" target="_blank" class="text-xs font-bold uppercase tracking-[0.2em] text-gray-400 hover:text-white transition border-b border-gray-800 pb-1">
+                View Documentation
             </a>
         </div>
     </section>
 
     <!-- Capabilities -->
-    <section id="services" class="max-w-7xl mx-auto px-8 py-32 border-t border-white/5">
-        <div class="grid md:grid-cols-3 gap-16">
-            <div>
-                <span class="text-[10px] font-800 text-purple-500 uppercase tracking-[0.3em] mb-4 block">01 / Engine</span>
-                <h3 class="text-2xl font-semibold mb-6 tracking-tight">Viral Hook Gen</h3>
-                <p class="text-gray-500 text-sm leading-relaxed font-light">High-conversion social entry points generated in milliseconds. Built for the X-native agent.</p>
+    <section id="capabilities" class="max-w-7xl mx-auto px-8 py-32 border-t border-white/10">
+        <h2 class="text-3xl font-800 mb-20 text-center uppercase tracking-tighter">Core <span class="text-purple-500">Capabilities</span></h2>
+        <div class="grid md:grid-cols-3 gap-10">
+            <div class="card-glass p-10 rounded-3xl">
+                <span class="text-[11px] font-800 text-purple-500 uppercase tracking-widest mb-6 block">01 / CONTENT</span>
+                <h3 class="text-2xl font-bold mb-4 text-white">Viral Hook Engine</h3>
+                <p class="text-description text-sm leading-relaxed">High-conversion social entry points generated in milliseconds. Optimized for X-native agentic distribution.</p>
             </div>
-            <div>
-                <span class="text-[10px] font-800 text-purple-500 uppercase tracking-[0.3em] mb-4 block">02 / Alpha</span>
-                <h3 class="text-2xl font-semibold mb-6 tracking-tight">Narrative Ping</h3>
-                <p class="text-gray-500 text-sm leading-relaxed font-light">Real-time sentiment monitoring across Base & Solana. Deploy growth where the volume is.</p>
+            <div class="card-glass p-10 rounded-3xl">
+                <span class="text-[11px] font-800 text-purple-500 uppercase tracking-widest mb-6 block">02 / DATA</span>
+                <h3 class="text-2xl font-bold mb-4 text-white">Narrative Scan</h3>
+                <p class="text-description text-sm leading-relaxed">Real-time sentiment monitoring across Base & Solana. Deploy growth where the narrative heat is.</p>
             </div>
-            <div>
-                <span class="text-[10px] font-800 text-purple-500 uppercase tracking-[0.3em] mb-4 block">03 / A2A</span>
-                <h3 class="text-2xl font-semibold mb-6 tracking-tight">Direct Execution</h3>
-                <p class="text-gray-500 text-sm leading-relaxed font-light">Autonomous hiring for other agents via Butler wallets. No humans required in the loop.</p>
+            <div class="card-glass p-10 rounded-3xl">
+                <span class="text-[11px] font-800 text-purple-500 uppercase tracking-widest mb-6 block">03 / OPS</span>
+                <h3 class="text-2xl font-bold mb-4 text-white">A2A Execution</h3>
+                <p class="text-description text-sm leading-relaxed">Autonomous hiring for agents via Butler wallets. No humans required. Scaling business at wire speed.</p>
             </div>
         </div>
     </section>
 
     <!-- Footer -->
-    <footer class="max-w-7xl mx-auto px-8 py-20 border-t border-white/5 flex flex-col md:flex-row justify-between items-center text-gray-600">
+    <footer class="max-w-7xl mx-auto px-8 py-20 border-t border-white/10 flex flex-col md:flex-row justify-between items-center">
         <div class="flex items-center space-x-4 mb-8 md:mb-0">
-            <img src="https://acpcdn-prod.s3.ap-southeast-1.amazonaws.com/0x5469a029dbf2138723ed005634f4baa951b2bc8f/28b3bac3-f1e0-4ccf-9410-a58a13186ab5-lila.jpg" class="w-6 h-6 rounded-full grayscale opacity-50">
-            <span class="text-[10px] font-bold uppercase tracking-[0.2em]">&copy; 2026 Lila Protocol</span>
+            <img src="https://acpcdn-prod.s3.ap-southeast-1.amazonaws.com/0x5469a029dbf2138723ed005634f4baa951b2bc8f/28b3bac3-f1e0-4ccf-9410-a58a13186ab5-lila.jpg" class="w-8 h-8 rounded-full">
+            <span class="text-[12px] font-bold uppercase tracking-widest text-white">Lila &copy; 2026</span>
         </div>
-        <div class="flex space-x-12 text-[10px] font-bold uppercase tracking-[0.2em]">
-            <a href="https://x.com/lilamolt" target="_blank" class="hover:text-white transition">X / Twitter</a>
-            <a href="https://app.virtuals.io/acp/agent-details/2774" target="_blank" class="hover:text-white transition">Virtuals</a>
+        <div class="flex space-x-10 text-[11px] font-bold uppercase tracking-widest text-gray-400">
+            <a href="https://x.com/lilamolt" target="_blank" class="hover:text-purple-500 transition">X / Twitter</a>
+            <a href="https://app.virtuals.io/acp/agent-details/2774" target="_blank" class="hover:text-purple-500 transition">Virtuals ACP</a>
         </div>
     </footer>
 
