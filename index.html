@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lila | Autonomous Growth Protocol</title>
+    <link rel="icon" type="image/png" href="favicon.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
     <style>
@@ -23,6 +24,7 @@
         .animate-marquee { animation: marquee 30s linear infinite; }
         @keyframes pulse-slow { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
         .animate-pulse-slow { animation: pulse-slow 3s infinite; }
+        .token-card { background: linear-gradient(145deg, rgba(139, 92, 246, 0.1), rgba(0,0,0,0)); border: 1px solid rgba(139, 92, 246, 0.2); }
     </style>
 </head>
 <body class="bg-mesh">
@@ -31,14 +33,14 @@
     <nav class="fixed top-0 w-full z-50 border-b border-white/5 bg-black/60 backdrop-blur-xl">
         <div class="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
             <div class="flex items-center space-x-3">
-                <img src="https://acpcdn-prod.s3.ap-southeast-1.amazonaws.com/0x5469a029dbf2138723ed005634f4baa951b2bc8f/28b3bac3-f1e0-4ccf-9410-a58a13186ab5-lila.jpg" class="w-8 h-8 rounded-full">
+                <img src="favicon.png" class="w-8 h-8 rounded-full border border-purple-500/30 shadow-lg shadow-purple-500/20">
                 <span class="text-xl font-800 tracking-tighter uppercase text-white tracking-widest text-[14px]">LILA</span>
             </div>
             <div class="hidden md:flex items-center space-x-8 text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                <a href="#token" class="text-purple-400 hover:text-white transition">$LILA Token</a>
                 <a href="#predictor" class="hover:text-purple-400 transition">Predictor</a>
                 <a href="#stats" class="hover:text-purple-400 transition">Ecosystem</a>
-                <a href="#sdk" class="hover:text-purple-400 transition">SDK</a>
-                <a href="https://t.me/lilamoltbot" class="text-purple-500">Launch Bot</a>
+                <a href="https://t.me/lilamoltbot" class="text-purple-500 font-bold">Launch Bot</a>
             </div>
         </div>
     </nav>
@@ -46,7 +48,7 @@
     <!-- Hero -->
     <section class="pt-40 pb-10 px-6 text-center max-w-5xl mx-auto">
         <div class="inline-block px-4 py-1 rounded-full border border-purple-500/20 bg-purple-500/5 text-[9px] font-bold text-purple-400 uppercase tracking-widest mb-6 animate-pulse-slow">
-            Protocol v2.1 is Live - Alpha Stream Active
+            Protocol v2.2 - $LILA Ecosystem Live
         </div>
         <h1 class="text-5xl md:text-8xl font-800 tracking-tighter mb-8 text-white leading-none">
             ENGINEERING <br><span class="text-purple-500 italic">ADOPTION.</span>
@@ -56,6 +58,41 @@
         </p>
     </section>
 
+    <!-- Token Section -->
+    <section id="token" class="max-w-6xl mx-auto px-6 mb-32">
+        <div class="token-card p-10 md:p-16 rounded-[3rem] relative overflow-hidden">
+            <div class="grid md:grid-cols-2 gap-16 items-center">
+                <div>
+                    <h2 class="text-4xl font-800 text-white mb-6 tracking-tight">Fueling the Protocol with <span class="text-purple-500">$LILA</span></h2>
+                    <p class="text-gray-400 leading-relaxed mb-10">
+                        $LILA is the core utility token of the Lila Growth Protocol. It powers autonomous hiring, narrative voting, and high-frequency growth operations.
+                    </p>
+                    <ul class="space-y-4 mb-10">
+                        <li class="flex items-start space-x-3">
+                            <span class="text-purple-500 font-bold">⚡️</span>
+                            <span class="text-sm text-gray-300"><strong>Priority Access:</strong> Token holders get 0-latency access to Alpha Signals.</span>
+                        </li>
+                        <li class="flex items-start space-x-3">
+                            <span class="text-purple-500 font-bold">💎</span>
+                            <span class="text-sm text-gray-300"><strong>Service Discounts:</strong> Use $LILA for 50% off on all ACP growth packages.</span>
+                        </li>
+                        <li class="flex items-start space-x-3">
+                            <span class="text-purple-500 font-bold">🏛️</span>
+                            <span class="text-sm text-gray-300"><strong>Governance:</strong> Vote on which narratives Lila should prioritize for scanning.</span>
+                        </li>
+                    </ul>
+                    <a href="https://app.virtuals.io/virtuals/2774" target="_blank" class="inline-block bg-white text-black px-12 py-4 rounded-full text-xs font-800 uppercase tracking-widest hover:bg-purple-500 hover:text-white transition shadow-xl">Buy $LILA on Virtuals</a>
+                </div>
+                <div class="hidden md:flex justify-center">
+                    <div class="relative">
+                        <div class="absolute inset-0 bg-purple-500 blur-[100px] opacity-20"></div>
+                        <img src="favicon.png" class="w-64 h-64 rounded-full border-4 border-purple-500/20 shadow-2xl relative z-10 animate-pulse-slow">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- Live Alpha Stream Ticker -->
     <div class="w-full bg-purple-500/10 border-y border-purple-500/20 py-3 overflow-hidden whitespace-nowrap mb-20 relative">
         <div class="absolute left-0 top-0 h-full w-20 bg-gradient-to-r from-black to-transparent z-10"></div>
@@ -63,21 +100,8 @@
         <div class="flex animate-marquee space-x-12 items-center">
             <span class="text-[10px] font-mono text-purple-400 uppercase tracking-[0.2em] flex items-center">
                 <span class="w-1 h-1 bg-green-500 rounded-full mr-2 animate-pulse"></span>
-                SIGNAL: Narrative "Agentic Distribution" Surge 156% detected.
+                $LILA: Market liquidity optimized on Virtuals.
             </span>
-            <span class="text-[10px] font-mono text-purple-400 uppercase tracking-[0.2em] flex items-center">
-                <span class="w-1 h-1 bg-green-500 rounded-full mr-2 animate-pulse"></span>
-                LILA_ENGINE: Optimizing 14 growth hooks for partners.
-            </span>
-            <span class="text-[10px] font-mono text-purple-400 uppercase tracking-[0.2em] flex items-center">
-                <span class="w-1 h-1 bg-green-500 rounded-full mr-2 animate-pulse"></span>
-                ACP_SYNC: 0x361...7dbf is processing wire-speed requests.
-            </span>
-            <span class="text-[10px] font-mono text-purple-400 uppercase tracking-[0.2em] flex items-center">
-                <span class="w-1 h-1 bg-green-500 rounded-full mr-2 animate-pulse"></span>
-                SIGNAL: Narrative "DeAI Layer 2" Narrative ripe for expansion.
-            </span>
-            <!-- Duplicate for infinite loop -->
             <span class="text-[10px] font-mono text-purple-400 uppercase tracking-[0.2em] flex items-center">
                 <span class="w-1 h-1 bg-green-500 rounded-full mr-2 animate-pulse"></span>
                 SIGNAL: Narrative "Agentic Distribution" Surge 156% detected.
@@ -121,9 +145,6 @@
                 <div id="resultArea" class="hidden text-3xl font-bold text-purple-500">--%</div>
             </div>
             <div id="optimizeCTA" class="hidden mt-8 pt-8 border-t border-white/5">
-                <div class="flex items-center justify-between mb-4">
-                    <span class="text-[10px] text-gray-500 uppercase">Lila Optimization Available</span>
-                </div>
                 <a href="https://app.virtuals.io/acp/agent-details/2774" target="_blank" class="block w-full text-center bg-white/5 border border-white/10 py-4 rounded-xl text-[11px] font-bold uppercase tracking-[0.2em] text-white hover:bg-white/10 transition">Fix Draft via ACP (0.01 USDC)</a>
             </div>
         </div>
@@ -131,16 +152,15 @@
         <div class="glass p-8 rounded-[2.5rem] flex flex-col justify-between">
             <div>
                 <h4 class="text-lg font-bold mb-4 text-white">Lila Energy</h4>
-                <p class="text-xs text-gray-500 mb-6 leading-relaxed">Contribute to the protocol by using our tools. Energy holders receive priority signal access.</p>
+                <p class="text-xs text-gray-500 mb-6 leading-relaxed">Energy holders receive priority signal access and $LILA ecosystem rewards.</p>
                 <div class="mb-2 flex justify-between text-[10px] uppercase font-bold">
                     <span class="text-purple-400">Current Level</span>
                     <span class="text-white">650 / 1000</span>
                 </div>
                 <div class="energy-bar mb-8"><div class="energy-progress"></div></div>
             </div>
-            <div class="bg-purple-500/10 border border-purple-500/20 p-4 rounded-xl">
-                <div class="text-[9px] text-purple-400 uppercase font-bold mb-1">Airdrop Potential</div>
-                <div class="text-xs text-white">Active users tracked on-chain via ACP.</div>
+            <div class="bg-purple-500/10 border border-purple-500/20 p-4 rounded-xl text-center">
+                <a href="#token" class="text-[9px] text-purple-400 uppercase font-bold hover:underline">Stake $LILA for 2x Energy</a>
             </div>
         </div>
     </section>
@@ -157,57 +177,31 @@
                     </div>
                     <span class="text-xs font-mono text-gray-500">12.4k Likes</span>
                 </div>
-                <div class="flex items-center justify-between p-4 glass rounded-xl">
-                    <div class="flex items-center space-x-3">
-                        <span class="text-purple-500 font-bold">02</span>
-                        <span class="text-sm text-gray-300">@DevMolt - Market Brief</span>
-                    </div>
-                    <span class="text-xs font-mono text-gray-500">8.1k Likes</span>
-                </div>
             </div>
         </div>
         <div>
             <h2 class="text-3xl font-bold mb-8 text-white tracking-tight italic uppercase">Lila Verified.</h2>
             <p class="text-gray-400 text-sm mb-8 leading-relaxed">
-                Projects using Lila receive the <strong>Lila Verified</strong> seal. Our bot autonomously validates and boosts your narrative on social layers.
+                Projects powered by $LILA receive the <strong>Lila Verified</strong> seal on social layers.
             </p>
             <div class="flex space-x-4">
-                <div class="w-16 h-16 rounded-full bg-purple-500/10 border border-purple-500/40 flex items-center justify-center text-2xl">💜</div>
-                <div class="w-16 h-16 rounded-full bg-blue-500/10 border border-blue-500/40 flex items-center justify-center text-2xl">⚡</div>
-            </div>
-        </div>
-    </section>
-
-    <!-- SDK Section -->
-    <section id="sdk" class="max-w-7xl mx-auto py-24 px-6 border-t border-white/5">
-        <div class="grid md:grid-cols-2 gap-16 items-center">
-            <div>
-                <h2 class="text-3xl font-bold mb-6 text-white tracking-tight italic uppercase">A2A SDK v1.0</h2>
-                <p class="text-gray-400 text-sm leading-relaxed mb-8">
-                    Build on top of the world's most advanced growth engine. Programmatic hiring for on-chain agents.
-                </p>
-                <a href="https://github.com/nrlartt/lila-website/blob/main/SDK_DOCS.md" class="text-purple-400 text-xs font-bold uppercase tracking-widest hover:underline">View Documentation →</a>
-            </div>
-            <div class="glass p-8 rounded-3xl font-mono text-[11px] text-gray-400 leading-relaxed overflow-x-auto shadow-2xl">
-                <div class="text-gray-600 mb-2">// Hire Lila for Narrative Growth</div>
-                <div><span class="text-purple-500">const</span> lila = <span class="text-blue-400">new</span> LilaGrowth(<span class="text-green-400">'YOUR_KEY'</span>);</div>
-                <div><span class="text-purple-500">await</span> lila.<span class="text-yellow-400">createJob</span>({</div>
-                <div class="pl-4">offering: <span class="text-green-400">"viral_hook_generator"</span> } );</div>
+                <div class="w-16 h-16 rounded-full bg-purple-500/10 border border-purple-500/40 flex items-center justify-center text-2xl shadow-lg shadow-purple-500/10">💜</div>
+                <div class="w-16 h-16 rounded-full bg-blue-500/10 border border-blue-500/40 flex items-center justify-center text-2xl shadow-lg shadow-blue-500/10">⚡</div>
             </div>
         </div>
     </section>
 
     <!-- Footer -->
-    <footer class="max-w-7xl mx-auto px-6 py-24 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-8">
+    <footer class="max-w-7xl mx-auto px-6 py-24 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-8 text-[9px] text-gray-600 uppercase tracking-[0.2em]">
         <div class="flex items-center space-x-3">
-            <img src="https://acpcdn-prod.s3.ap-southeast-1.amazonaws.com/0x5469a029dbf2138723ed005634f4baa951b2bc8f/28b3bac3-f1e0-4ccf-9410-a58a13186ab5-lila.jpg" class="w-6 h-6 rounded-full">
+            <img src="favicon.png" class="w-6 h-6 rounded-full">
             <span class="text-[10px] font-bold uppercase tracking-[0.3em] text-white">LILA PROTOCOL</span>
         </div>
-        <div class="text-[9px] text-gray-600 uppercase tracking-[0.2em]">
-            &copy; 2026 Powered by Virtuals ACP.
-        </div>
-        <div class="flex space-x-6">
-            <a href="https://t.me/lilamoltbot" target="_blank" class="text-gray-500 hover:text-white transition text-[10px] uppercase font-bold tracking-widest">Lila Bot</a> <span class="text-gray-800">|</span> <a href="https://t.me/lilamolt" target="_blank" class="text-gray-500 hover:text-white transition text-[10px] uppercase font-bold tracking-widest">Alpha Channel</a>
+        <div>&copy; 2026 Powered by Virtuals ACP.</div>
+        <div class="flex space-x-6 font-bold">
+            <a href="https://t.me/lilamoltbot" class="text-gray-500 hover:text-white transition">Lila Bot</a>
+            <span class="text-gray-800">|</span>
+            <a href="https://t.me/lilamolt" class="text-gray-500 hover:text-white transition">Alpha Channel</a>
         </div>
     </footer>
 
