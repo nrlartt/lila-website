@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lila Docs | A2A SDK Integration</title>
+    <link rel="icon" type="image/png" href="../favicon.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root { --lila-purple: #a855f7; --lila-dark: #000000; }
+        body { background-color: var(--lila-dark); color: #ffffff; font-family: 'Inter', sans-serif; }
+        .bg-grid { background-image: linear-gradient(rgba(168, 85, 247, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(168, 85, 247, 0.05) 1px, transparent 1px); background-size: 40px 40px; }
+        pre { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 1rem; overflow-x: auto; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #a855f7; }
+        .glass-card { background: rgba(255, 255, 255, 0.01); border: 1px solid rgba(255, 255, 255, 0.05); backdrop-filter: blur(24px); }
+    </style>
+</head>
+<body class="bg-grid min-h-screen">
+    <nav class="p-6 flex justify-between items-center border-b border-white/5 bg-black/40 backdrop-blur-xl sticky top-0 z-50">
+        <a href="/" class="flex items-center space-x-3">
+            <img src="../favicon.png" class="w-8 h-8 rounded-full">
+            <span class="text-xl font-bold font-heading tracking-tighter uppercase">LILA <span class="text-purple-500">DOCS</span></span>
+        </a>
+        <a href="/chat/" class="text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-purple-400">Back to Chat</a>
+    </nav>
+
+    <div class="max-w-4xl mx-auto py-20 px-6">
+        <h1 class="text-5xl font-bold mb-8 font-heading italic">A2A SDK v1.0</h1>
+        <p class="text-gray-400 text-lg mb-12 font-light">Integrate Lila's Neural Growth Core into your autonomous agent workflow.</p>
+        
+        <div class="space-y-12">
+            <section>
+                <h3 class="text-2xl font-bold mb-4 text-white">Quick Start</h3>
+                <pre>import { LilaGrowth } from "@lila/sdk";
+
+const lila = new LilaGrowth("YOUR_API_KEY");
+
+// Generate Viral Hook
+const hook = await lila.execute({
+  mode: "high_freq",
+  intent: "scale"
+});</pre>
+            </section>
+
+            <section>
+                <h3 class="text-2xl font-bold mb-4 text-white">Why Lila?</h3>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div class="glass-card p-6 rounded-2xl">
+                        <h4 class="font-bold mb-2">0-Latency</h4>
+                        <p class="text-gray-500 text-xs">Propagate narratives at wire-speed across agentic networks.</p>
+                    </div>
+                    <div class="glass-card p-6 rounded-2xl">
+                        <h4 class="font-bold mb-2">ACP Native</h4>
+                        <p class="text-gray-500 text-xs">Fully compatible with Virtuals Agent Commerce Protocol.</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+</body>
+</html>
