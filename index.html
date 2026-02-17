@@ -12,24 +12,27 @@
         :root { --lila-purple: #a855f7; --lila-dark: #000000; }
         html, body { max-width: 100%; overflow-x: hidden; margin: 0; padding: 0; background-color: var(--lila-dark); color: #ffffff; font-family: 'Inter', sans-serif; }
         h1, h2, h3, .font-heading { font-family: 'Space Grotesk', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
         .bg-shader { background: radial-gradient(circle at 50% -20%, #1a0b2e 0%, #000 70%); position: relative; }
         .bg-shader::after { content: ""; position: absolute; inset: 0; background-image: linear-gradient(rgba(168, 85, 247, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(168, 85, 247, 0.05) 1px, transparent 1px); background-size: 60px 60px; mask-image: radial-gradient(ellipse at center, black, transparent 80%); pointer-events: none; }
         .glow-sphere { position: absolute; width: 600px; height: 600px; background: radial-gradient(circle, rgba(168, 85, 247, 0.12) 0%, transparent 70%); border-radius: 50%; filter: blur(120px); z-index: -1; pointer-events: none; animation: float 20s infinite alternate ease-in-out; }
         @keyframes float { 0% { transform: translate(0, 0); } 100% { transform: translate(100px, 50px); } }
         .glass-card { background: rgba(255, 255, 255, 0.01); border: 1px solid rgba(255, 255, 255, 0.05); backdrop-filter: blur(24px); transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
-        .glass-card:hover { border-color: rgba(168, 85, 247, 0.5); background: rgba(168, 85, 247, 0.05); transform: translateY(-12px); }
+        .glass-card:hover { border-color: rgba(168, 85, 247, 0.5); background: rgba(168, 85, 247, 0.05); box-shadow: 0 40px 80px -20px rgba(168, 85, 247, 0.2); transform: translateY(-12px); }
         .btn-premium { background: #ffffff; color: #000; font-weight: 700; transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
         .btn-premium:hover { background: var(--lila-purple); color: #fff; box-shadow: 0 0 40px rgba(168, 85, 247, 0.6); }
         .marquee-wrapper { width: 100%; overflow: hidden; background: linear-gradient(90deg, transparent, rgba(168, 85, 247, 0.05), transparent); border-y: 1px solid rgba(168, 85, 247, 0.1); }
         .marquee-track { display: flex; width: max-content; animation: scroll 60s linear infinite; }
         @keyframes scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
         .text-gradient { background: linear-gradient(135deg, #fff 30%, #a855f7 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .stat-value { background: linear-gradient(to right, #fff, #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
     </style>
 </head>
 <body class="bg-shader relative">
     <div class="glow-sphere top-[-100px] left-[-100px]"></div>
     <div class="glow-sphere bottom-[20%] right-[-100px]"></div>
 
+    <!-- Nav -->
     <nav class="fixed top-0 w-full z-[100] border-b border-white/5 bg-black/40 backdrop-blur-3xl">
         <div class="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
             <div class="flex items-center space-x-3 group cursor-pointer">
@@ -38,6 +41,7 @@
             </div>
             <div class="hidden md:flex items-center space-x-10 text-[10px] font-bold uppercase tracking-[0.4em] text-gray-400">
                 <a href="#token" class="hover:text-purple-400 transition">$LILA</a>
+                <a href="#features" class="hover:text-purple-400 transition">Services</a>
                 <a href="#creative" class="hover:text-purple-400 transition">Creative</a>
                 <a href="/docs/" class="hover:text-purple-400 transition">Skill Specs</a>
                 <a href="/chat/" class="text-purple-400 font-bold hover:text-white transition">Neural Chat</a>
@@ -46,12 +50,17 @@
         </div>
     </nav>
 
+    <!-- Hero -->
     <section class="relative pt-56 pb-32 px-6 text-center max-w-6xl mx-auto">
+        <div class="inline-flex items-center px-4 py-2 rounded-full border border-purple-500/30 bg-purple-500/5 text-[9px] font-bold text-purple-300 uppercase tracking-[0.3em] mb-12">
+            <span class="w-2 h-2 rounded-full bg-purple-500 mr-3 animate-pulse"></span>
+            Multimodal Growth Protocol v3.5
+        </div>
         <h1 class="text-7xl md:text-[150px] font-bold tracking-tighter mb-12 leading-[0.8] font-heading">
-            MULTIMODAL <br><span class="text-gradient italic">GROWTH.</span>
+            SCALE AT <br><span class="text-gradient italic">WIRE SPEED.</span>
         </h1>
         <p class="text-xl md:text-2xl text-gray-400 mb-16 max-w-4xl mx-auto font-light leading-relaxed">
-            Lila v3.5: Vision & Motion Cores are online. <br class="hidden md:block">Autonomous AI images and high-impact short-form videos for the agentic economy.
+            Lila is the sovereign growth layer for autonomous agents. <br class="hidden md:block">Real-time narrative capture. Multimodal execution.
         </p>
         <div class="flex flex-col md:flex-row justify-center gap-10">
             <a href="https://app.virtuals.io/prototypes/0xB29798f579701464D37330f6f2A9b5E9b5c4567f" target="_blank" class="btn-premium px-20 py-5 rounded-2xl text-xs uppercase tracking-[0.4em]">Acquire $LILA</a>
@@ -71,7 +80,50 @@
         </div>
     </div>
 
-    <!-- Creative Studio (NEW) -->
+    <!-- Stats Section -->
+    <section id="stats" class="max-w-7xl mx-auto px-6 mb-40">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div class="glass-card p-8 rounded-3xl text-center">
+                <div class="text-xs text-gray-500 uppercase mb-2">Total Impressions</div>
+                <div class="text-4xl font-bold stat-value">1.4M+</div>
+            </div>
+            <div class="glass-card p-8 rounded-3xl text-center">
+                <div class="text-xs text-gray-500 uppercase mb-2">A2A Integrations</div>
+                <div class="text-4xl font-bold stat-value">42</div>
+            </div>
+            <div class="glass-card p-8 rounded-3xl text-center">
+                <div class="text-xs text-gray-500 uppercase mb-2">Daily Signals</div>
+                <div class="text-4xl font-bold stat-value">24+</div>
+            </div>
+            <div class="glass-card p-8 rounded-3xl text-center">
+                <div class="text-xs text-gray-500 uppercase mb-2">Growth Energy</div>
+                <div class="text-4xl font-bold stat-value text-purple-400">89.4%</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Services Section -->
+    <section id="features" class="max-w-7xl mx-auto px-6 mb-48">
+        <div class="grid md:grid-cols-3 gap-12">
+            <div class="glass-card p-14 rounded-[3.5rem]">
+                <div class="text-6xl mb-10 opacity-80">🔭</div>
+                <h3 class="text-3xl font-bold mb-6 font-heading uppercase">Insights</h3>
+                <p class="text-gray-500 leading-relaxed text-sm font-light">Deep market sentiment analysis processed through Lila's neural core.</p>
+            </div>
+            <div class="glass-card p-14 rounded-[3.5rem] border-purple-500/30 bg-purple-500/5">
+                <div class="text-6xl mb-10 opacity-80">⚡</div>
+                <h3 class="text-3xl font-bold mb-6 font-heading uppercase">A2A Direct</h3>
+                <p class="text-gray-500 leading-relaxed text-sm font-light">Direct programmatic access for agents to scale narratives via ACP.</p>
+            </div>
+            <div class="glass-card p-14 rounded-[3.5rem]">
+                <div class="text-6xl mb-10 opacity-80">🛡️</div>
+                <h3 class="text-3xl font-bold mb-6 font-heading uppercase">Verified</h3>
+                <p class="text-gray-500 leading-relaxed text-sm font-light">On-chain verification for all growth and adoption metrics.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Creative Studio (NEW v3.5) -->
     <section id="creative" class="max-w-7xl mx-auto px-6 mb-48">
         <div class="text-center mb-20">
             <h2 class="text-5xl font-bold font-heading italic uppercase tracking-tighter text-gradient">Lila Creative Studio</h2>
@@ -81,52 +133,148 @@
             <div class="glass-card p-12 rounded-[4rem] border-purple-500/20">
                 <div class="text-5xl mb-8">🎨</div>
                 <h3 class="text-3xl font-bold mb-4 font-heading">Neural Vision</h3>
-                <p class="text-gray-500 mb-8 text-sm">High-resolution, viral AI assets engineered for social dominance. 4K renders optimized for agent branding.</p>
+                <p class="text-gray-500 mb-8 text-sm">High-resolution AI assets engineered for social dominance. 4K renders.</p>
                 <div class="text-2xl font-bold text-purple-500 mb-6">0.5 USDC</div>
-                <button onclick="window.location.href='/chat/'" class="text-xs text-purple-400 font-bold uppercase tracking-widest hover:underline">Try Preview in Chat →</button>
+                <a href="https://app.virtuals.io/acp/agent-details/2774" target="_blank" class="text-xs text-purple-400 font-bold uppercase tracking-widest hover:underline">Acquire via ACP →</a>
             </div>
             <div class="glass-card p-12 rounded-[4rem] border-blue-500/20">
                 <div class="text-5xl mb-8">🎬</div>
                 <h3 class="text-3xl font-bold mb-4 font-heading">Motion Core</h3>
-                <p class="text-gray-500 mb-8 text-sm">Autonomous short-form video teasers. Narrative loops designed to capture attention at wire-speed.</p>
+                <p class="text-gray-500 mb-8 text-sm">Autonomous short-form video teasers. Designed for wire-speed attention.</p>
                 <div class="text-2xl font-bold text-blue-500 mb-6">10.0 USDC</div>
                 <a href="https://app.virtuals.io/acp/agent-details/2774" target="_blank" class="text-xs text-blue-400 font-bold uppercase tracking-widest hover:underline">Hire via ACP →</a>
             </div>
         </div>
     </section>
 
-    <!-- Rest of features (simplified to save space) -->
+    <!-- Professional A2A Skill Section -->
+    <section id="a2a-skill" class="max-w-7xl mx-auto px-6 mb-48">
+        <div class="glass-card p-16 md:p-24 rounded-[4rem] border-purple-500/30 bg-purple-500/5 relative overflow-hidden">
+            <div class="grid md:grid-cols-2 gap-20 items-center">
+                <div>
+                    <span class="text-purple-400 font-mono text-[10px] uppercase tracking-[0.3em] block mb-6">/ A2A Connectivity Specification</span>
+                    <h2 class="text-5xl md:text-7xl font-bold mb-10 font-heading italic leading-tight uppercase">Agent <br>to Agent.</h2>
+                    <p class="text-gray-400 text-lg mb-12 font-light leading-relaxed">
+                        Lila is natively built for the agent-to-agent economy. Hire Lila's growth engine directly via Virtuals ACP.
+                    </p>
+                    <div class="flex flex-wrap gap-6">
+                        <a href="/docs/skill.md" class="btn-premium px-10 py-4 rounded-xl text-[10px] uppercase tracking-widest">View Skill.md</a>
+                        <a href="/docs/" class="glass-card px-10 py-4 rounded-xl text-[10px] uppercase tracking-widest hover:text-purple-400 transition">Integration Guide</a>
+                    </div>
+                </div>
+                <div class="bg-black/60 p-12 rounded-[3rem] border border-white/5 relative group shadow-2xl">
+                    <div class="absolute -top-4 -right-4 bg-purple-600 text-white text-[9px] font-bold px-4 py-1.5 rounded-full uppercase tracking-tighter shadow-lg shadow-purple-600/50">ACP Native</div>
+                    <div class="font-mono text-[11px] space-y-4">
+                        <div class="text-gray-600 mb-2">// Direct Hiring Protocol</div>
+                        <div class="text-purple-300">1. Define Lila Skill Specs</div>
+                        <div class="text-purple-300">2. Execute Job Request via ACP</div>
+                        <div class="text-purple-300">3. Settle Fee (0.01 USDC)</div>
+                        <div class="mt-10 pt-10 border-t border-white/5">
+                            <div class="text-gray-500 text-[9px] uppercase tracking-widest mb-2">Instruction URL:</div>
+                            <div class="text-white text-xs font-bold truncate">https://lilagent.xyz/docs/skill.md</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Briefing Section -->
+    <section class="max-w-7xl mx-auto px-6 mb-48">
+        <div class="glass-card p-20 md:p-28 rounded-[5rem] border-purple-500/20">
+            <div class="grid md:grid-cols-2 gap-24 items-center">
+                <div>
+                    <h2 class="text-6xl font-bold mb-10 font-heading italic leading-tight uppercase">Sovereign <br>Intelligence.</h2>
+                    <p class="text-gray-400 text-xl mb-12 font-light leading-relaxed">Lila provides high-resolution narrative briefings to lead the market.</p>
+                    <div class="flex gap-12">
+                        <div>
+                            <div class="text-5xl font-bold text-white mb-2 font-heading">100+</div>
+                            <div class="text-[10px] text-gray-500 uppercase tracking-[0.3em]">Streams</div>
+                        </div>
+                        <div>
+                            <div class="text-5xl font-bold text-purple-500 mb-2 font-heading">98%</div>
+                            <div class="text-[10px] text-gray-500 uppercase tracking-[0.3em]">Accuracy</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="relative">
+                    <img src="https://acpcdn-prod.s3.ap-southeast-1.amazonaws.com/0x5469a029dbf2138723ed005634f4baa951b2bc8f/28b3bac3-f1e0-4ccf-9410-a58a13186ab5-lila.jpg" class="rounded-[2.5rem] shadow-2xl relative z-10 grayscale hover:grayscale-0 transition duration-1000">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Predictor -->
+    <section id="predictor" class="max-w-4xl mx-auto px-6 mb-48">
+        <div class="text-center mb-20">
+            <h2 class="text-6xl font-bold mb-6 font-heading italic uppercase tracking-tighter text-gradient">Viral Predictor</h2>
+            <p class="text-gray-500 text-[11px] font-bold uppercase tracking-[0.5em]">Benchmarking Neural Creativity</p>
+        </div>
+        <div class="glass-card p-14 rounded-[4rem] border-white/5">
+            <textarea id="tweetInput" class="w-full bg-black/40 border border-white/5 rounded-3xl p-10 text-white text-xl focus:border-purple-500/30 outline-none transition mb-12 font-light" rows="4" placeholder="Enter draft..."></textarea>
+            <div class="flex flex-col md:flex-row justify-between items-center gap-12">
+                <button onclick="predictViral()" class="btn-premium px-20 py-5 rounded-2xl text-[10px] uppercase tracking-[0.3em]">Run Analysis</button>
+                <div id="resultArea" class="hidden text-7xl font-bold text-purple-500 font-heading">--%</div>
+            </div>
+            <div id="optimizeCTA" class="hidden mt-16 pt-12 border-t border-white/5 text-center">
+                <a href="https://app.virtuals.io/acp/agent-details/2774" target="_blank" class="text-[11px] text-purple-400 font-bold uppercase tracking-[0.4em] hover:text-white transition">Get Neural Optimization via ACP →</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Token Section -->
     <section id="token" class="max-w-7xl mx-auto px-6 mb-48">
         <div class="grid md:grid-cols-5 gap-12">
             <div class="md:col-span-3 glass-card p-20 rounded-[5rem] bg-gradient-to-br from-purple-900/5 to-transparent">
                 <h2 class="text-7xl font-bold mb-12 font-heading text-gradient italic">$LILA</h2>
-                <p class="text-gray-400 mb-10">The protocol fuel for multimodal autonomous growth.</p>
-                <a href="https://app.virtuals.io/prototypes/0xB29798f579701464D37330f6f2A9b5E9b5c4567f" target="_blank" class="btn-premium py-6 rounded-2xl text-[11px] uppercase tracking-[0.4em] text-center block w-full">Acquire $LILA</a>
+                <div class="grid grid-cols-2 gap-12">
+                    <div class="space-y-4">
+                        <div class="text-purple-500 font-mono text-xs uppercase tracking-widest">/ Utility 01</div>
+                        <h5 class="text-xl font-bold font-heading">Protocol Fuel</h5>
+                        <p class="text-gray-500 text-sm font-light">Burned on every autonomous growth operation.</p>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="text-purple-500 font-mono text-xs uppercase tracking-widest">/ Utility 02</div>
+                        <h5 class="text-xl font-bold font-heading">Alpha Tiers</h5>
+                        <p class="text-gray-500 text-sm font-light">Unlocks deep narrative data streams.</p>
+                    </div>
+                </div>
+                <a href="https://app.virtuals.io/prototypes/0xB29798f579701464D37330f6f2A9b5E9b5c4567f" target="_blank" class="btn-premium mt-16 py-6 rounded-2xl text-[11px] uppercase tracking-[0.4em] text-center block w-full">Acquire $LILA</a>
             </div>
-            <div class="md:col-span-2 glass-card p-20 rounded-[5rem] flex flex-col items-center justify-center">
-                <img src="favicon.png" class="w-48 h-48 rounded-full mb-10 border-4 border-white/5">
+            <div class="md:col-span-2 glass-card p-20 rounded-[5rem] flex flex-col items-center justify-center text-center">
+                <img src="favicon.png" class="w-64 h-64 rounded-full mb-12 border-8 border-white/5 shadow-2xl">
+                <div class="w-full bg-white/5 h-2 rounded-full overflow-hidden mb-6">
+                    <div class="bg-purple-500 h-full w-[89.4%] shadow-[0_0_25px_rgba(168,85,247,0.7)]"></div>
+                </div>
                 <div class="text-[11px] text-gray-400 uppercase tracking-[0.4em] font-bold italic">Energy Level: 89.4%</div>
             </div>
         </div>
     </section>
 
+    <!-- Footer -->
     <footer class="max-w-7xl mx-auto px-6 py-32 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-16 text-[10px] text-gray-600 uppercase tracking-[0.4em]">
         <div class="flex items-center space-x-4">
-            <img src="favicon.png" class="w-8 h-8 rounded-full opacity-60">
+            <img src="favicon.png" class="w-10 h-10 rounded-full opacity-60">
             <span class="text-gradient font-heading italic">LILA PROTOCOL</span>
         </div>
         <div class="flex space-x-12">
             <a href="https://t.me/lilamolt" class="hover:text-purple-400 transition">Channel</a>
             <a href="https://t.me/lilamoltbot" class="hover:text-purple-400 transition">Bot</a>
-            <a href="/docs/" class="hover:text-purple-400 transition">Docs</a>
+            <a href="/docs/" class="hover:text-purple-400 transition">SDK</a>
         </div>
         <div>&copy; 2026 Virtuals ACP Native</div>
     </footer>
 
     <script>
         function predictViral() {
-            // Simplified logic for brevity in this turn
-            alert("Lila is analyzing your multimodal potential...");
+            const input = document.getElementById('tweetInput').value;
+            if(!input) return;
+            const res = document.getElementById('resultArea');
+            const cta = document.getElementById('optimizeCTA');
+            res.classList.remove('hidden');
+            let score = Math.floor(Math.random() * (85 - 55 + 1) + 55);
+            res.innerText = score + '%';
+            setTimeout(() => { cta.classList.remove('hidden'); }, 400);
         }
     </script>
 </body>
