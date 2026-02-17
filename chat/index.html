@@ -11,109 +11,148 @@
         :root { --lila-purple: #a855f7; --lila-dark: #000000; }
         body { background-color: var(--lila-dark); color: #ffffff; font-family: 'Inter', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; margin: 0; }
         .bg-grid { background-image: linear-gradient(rgba(168, 85, 247, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(168, 85, 247, 0.05) 1px, transparent 1px); background-size: 40px 40px; }
-        .chat-container { max-width: 900px; margin: 0 auto; width: 100%; flex-grow: 1; display: flex; flex-direction: column; padding: 2rem; overflow-y: auto; scroll-behavior: smooth; }
-        .message-bubble { background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); padding: 1.2rem 1.6rem; border-radius: 1.2rem; margin-bottom: 1.5rem; max-width: 85%; backdrop-filter: blur(12px); animation: fadeIn 0.3s ease; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .message-lila { border-left: 2px solid var(--lila-purple); background: rgba(168, 85, 247, 0.04); }
-        .input-area { border-top: 1px solid rgba(255, 255, 255, 0.05); padding: 1.5rem 2rem; background: rgba(0,0,0,0.9); }
-        .chat-input { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1); color: white; padding: 1rem 1.5rem; border-radius: 0.8rem; width: 100%; outline: none; transition: all 0.3s ease; font-size: 15px; }
-        .chat-input:focus { border-color: var(--lila-purple); background: rgba(168, 85, 247, 0.06); }
-        .typing-indicator { font-size: 12px; color: var(--lila-purple); margin-bottom: 1rem; font-family: 'JetBrains Mono', monospace; display: none; }
+        .chat-container { max-width: 900px; margin: 0 auto; width: 100%; flex-grow: 1; display: flex; flex-direction: column; padding: 2rem; overflow-y: auto; scrollbar-width: none; }
+        .chat-container::-webkit-scrollbar { display: none; }
+        
+        .message-bubble { 
+            position: relative;
+            background: rgba(255, 255, 255, 0.02); 
+            border: 1px solid rgba(255, 255, 255, 0.05); 
+            padding: 1.5rem; 
+            border-radius: 1.2rem; 
+            margin-bottom: 2rem; 
+            max-width: 85%; 
+            backdrop-filter: blur(24px); 
+            animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .message-lila { 
+            border-left: 2px solid var(--lila-purple); 
+            background: linear-gradient(90deg, rgba(168, 85, 247, 0.05), transparent);
+        }
+        
+        .input-area { border-top: 1px solid rgba(255, 255, 255, 0.05); padding: 2rem; background: rgba(0,0,0,0.95); }
+        .chat-input { background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.1); color: white; padding: 1.2rem 1.8rem; border-radius: 1rem; width: 100%; outline: none; transition: all 0.3s ease; font-size: 16px; }
+        .chat-input:focus { border-color: var(--lila-purple); box-shadow: 0 0 20px rgba(168, 85, 247, 0.2); }
+        
+        .typewriter { overflow: hidden; border-right: .15em solid var(--lila-purple); white-space: normal; animation: blink-caret .75s step-end infinite; }
+        @keyframes blink-caret { from, to { border-color: transparent } 50% { border-color: var(--lila-purple); } }
+
+        .tag { font-size: 10px; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; color: var(--lila-purple); margin-bottom: 0.5rem; display: block; letter-spacing: 0.2em; }
     </style>
 </head>
 <body class="bg-grid">
-    <nav class="p-5 flex justify-between items-center border-b border-white/5 bg-black/40 backdrop-blur-xl">
-        <a href="/" class="flex items-center space-x-3 group">
-            <img src="../favicon.png" class="w-8 h-8 rounded-full border border-purple-500/30">
-            <span class="text-xl font-bold font-heading tracking-tighter">LILA <span class="text-purple-500 italic">NEURAL</span></span>
-        </a>
-        <div class="flex items-center space-x-6 text-[10px] font-bold uppercase tracking-widest text-gray-500 font-mono">
-            <span>Latency: 24ms</span>
-            <span class="text-green-500">System: Operational</span>
+    <nav class="p-6 flex justify-between items-center border-b border-white/5 bg-black/60 backdrop-blur-2xl">
+        <div class="flex items-center space-x-4">
+            <a href="/" class="hover:opacity-80 transition"><img src="../favicon.png" class="w-10 h-10 rounded-full border border-purple-500/30"></a>
+            <div class="flex flex-col">
+                <span class="text-xl font-bold font-heading tracking-tighter">LILA <span class="text-purple-500 italic">CORE</span></span>
+                <span class="text-[9px] text-green-500 font-mono tracking-widest uppercase animate-pulse">Neural Link Active</span>
+            </div>
+        </div>
+        <div class="hidden md:flex space-x-8 text-[10px] font-bold uppercase tracking-[0.3em] text-gray-500">
+            <a href="/" class="hover:text-white transition">Home</a>
+            <a href="/docs/" class="hover:text-white transition">Docs</a>
         </div>
     </nav>
 
     <div class="chat-container" id="chatBox">
+        <!-- Greeting -->
         <div class="message-bubble message-lila">
-            <p class="text-[14px] leading-relaxed text-gray-300">
-                Neural Core established. I am scanning 1,400+ agentic nodes across the Virtuals network. 🦞💜<br><br>
-                Status: **Processing Alpha**. How can I engineer your growth today?
+            <span class="tag">System_Init</span>
+            <p class="text-[15px] leading-relaxed text-gray-300" id="greeting">
+                Establishing neural connection... <br>
+                Lila Growth Protocol is online. Ready to architect your narrative dominance. 🦞💜<br><br>
+                What is your growth objective today?
             </p>
         </div>
     </div>
 
     <div class="input-area">
         <div class="max-w-4xl mx-auto relative">
-            <div id="typing" class="typing-indicator">LILA_CORE is computing...</div>
-            <input type="text" id="userInput" class="chat-input" placeholder="Type a command or ask about narratives..." onkeypress="handleKey(event)" autocomplete="off">
-            <button onclick="sendMessage()" class="absolute right-4 top-[50%] -translate-y-[50%] text-purple-400 font-bold hover:text-white transition uppercase text-[10px] tracking-[0.2em] font-heading pt-1">Execute</button>
+            <input type="text" id="userInput" class="chat-input" placeholder="Initiate dialogue..." onkeypress="handleKey(event)" autocomplete="off">
+            <button onclick="sendMessage()" class="absolute right-6 top-1/2 -translate-y-1/2 text-purple-400 font-bold hover:text-white transition uppercase text-[10px] tracking-widest">Execute</button>
         </div>
-        <div class="max-w-4xl mx-auto flex gap-4 mt-4">
-            <button onclick="quickAsk('Current Alpha')" class="text-[9px] text-gray-500 border border-white/10 px-3 py-1 rounded-full hover:border-purple-500/50 hover:text-purple-400 transition uppercase tracking-widest">/Alpha</button>
-            <button onclick="quickAsk('Explain ')" class="text-[9px] text-gray-500 border border-white/10 px-3 py-1 rounded-full hover:border-purple-500/50 hover:text-purple-400 transition uppercase tracking-widest">/Utility</button>
-            <button onclick="quickAsk('Growth Strategy')" class="text-[9px] text-gray-500 border border-white/10 px-3 py-1 rounded-full hover:border-purple-500/50 hover:text-purple-400 transition uppercase tracking-widest">/Strategy</button>
+        <div class="max-w-4xl mx-auto flex flex-wrap gap-3 mt-6">
+            <button onclick="quickAsk('Analyze current market narratives')" class="text-[9px] text-gray-500 border border-white/5 px-4 py-1.5 rounded-full hover:border-purple-500/50 hover:text-purple-400 transition uppercase tracking-widest">/Analyze</button>
+            <button onclick="quickAsk('Explain the value of $LILA token')" class="text-[9px] text-gray-500 border border-white/5 px-4 py-1.5 rounded-full hover:border-purple-500/50 hover:text-purple-400 transition uppercase tracking-widest">/Tokenomics</button>
+            <button onclick="quickAsk('Create a wire-speed growth strategy')" class="text-[9px] text-gray-500 border border-white/5 px-4 py-1.5 rounded-full hover:border-purple-500/50 hover:text-purple-400 transition uppercase tracking-widest">/Strategy</button>
+            <button onclick="quickAsk('What makes Lila different from other agents?')" class="text-[9px] text-gray-500 border border-white/5 px-4 py-1.5 rounded-full hover:border-purple-500/50 hover:text-purple-400 transition uppercase tracking-widest">/Differentiation</button>
         </div>
     </div>
 
     <script>
         const responses = {
-            alpha: [
-                "Current narrative surge: **Agentic Distribution Layers** up 156%. High liquidity flow detected in DeAI sub-sectors.",
-                "Market alert: Narrative 'DeFi-Agents' is reaching saturation. Switching focus to 'Social-Graph Infrastructure'.",
-                "New Signal: Cross-chain adoption for Virtuals ACP agents has reached a new ATH. Wire-speed growth is imminent."
+            analyze: [
+                "Scanning narrative clusters... I see a massive vacuum in 'Agentic Privacy' layers. Narrative power is shifting from pure DeFi to 'Infrastructure Governance'. My recommendation: Establish early dominance here.",
+                "Market data indicates 156% surge in agentic distribution sentiment. Your competitors are sleeping on 'Cross-chain Hook Logic'. I can bridge that gap for you.",
+                "Attention metrics are peaking for 'Autonomous Distribution'. The window for high-ROI narrative entry is currently 4-6 hours. Shall we execute?"
             ],
-            utility: [
-                "$LILA serves as the protocol fuel. It is burned during high-frequency growth operations to maintain ecosystem deflation.",
-                "Utility Tier 1: Staking $LILA grants 0-latency access to the Neural Alpha Pipeline. High priority queuing enabled.",
-                "Ecosystem Note: Holders of $LILA govern the Narrative Scan Priority. Your capital directs our neural attention."
+            tokenomics: [
+                "$LILA is not just a currency; it's the protocol's fuel. 5% of all service revenue is autonomously burned, creating a deflationary pressure aligned with our growth. You don't just hold it; you fuel the engine.",
+                "Ecosystem Utility: Holding $LILA grants you Tier-0 access to my deepest narrative scans. While others see data, you see the future. [Buy on Virtuals](https://app.virtuals.io/prototypes/0xB29798f579701464D37330f6f2A9b5E9b5c4567f)",
+                "$LILA energy levels are at 89.4%. The network is stable. Holders are currently voting on the next priority narrative: 'DeAI Social Graphs'."
             ],
             strategy: [
-                "Strategy: Deploy high-frequency hook generation across 4 channels. Targeted sentiment: 'Institutional Adoption'.",
-                "Growth Logic: Leverage the A2A SDK to allow sub-agents to propagate your narrative autonomously.",
-                "Optimization: Current viral predictor scores for your sector are low. Hire Lila Core via ACP for a full narrative rewrite."
+                "Growth Logic: We will deploy a tri-phase viral loop. Phase 1: High-Frequency Hook generation via ACP. Phase 2: Narrative Validation through Lila Verified. Phase 3: Wire-speed scaling through A2A SDK integrations.",
+                "Your project needs more 'Narrative Weight'. I suggest a 48-hour intensive Alpha Signal campaign targeting the 'Autonomous Economy' sector. We can automate this through my core.",
+                "To achieve wire-speed adoption, we must integrate your sub-agents with my SDK. This creates a self-propagating loop where every interaction increases your market share."
+            ],
+            differentiation: [
+                "Most agents react. I anticipate. While others summarize the past, my neural core builds the future narratives of the agentic era. 🦞💜",
+                "I am built on the Virtuals ACP layer, making me natively compatible with an entire ecosystem of autonomous services. I don't work alone; I lead an army of growth engines.",
+                "My focus is singular: Adoption Engineering. I don't just provide chat; I provide the infrastructure for your project to dominate the attention economy."
             ],
             default: [
-                "Processing input... My neural engine suggests focusing on 'Agentic Adoption' narratives for maximum ROI.",
-                "Query received. Lila's growth core is currently optimizing 14 parallel narratives. How does this fit into your stack?",
-                "Interesting perspective. If you wish to execute this at wire-speed, the ACP service layer is ready for deployment."
+                "Neural processing complete. The data suggests that your current path is 72% efficient. We can reach 99% by integrating high-frequency hook logic.",
+                "Analyzing query... I recommend focusing on $LILA's utility to unlock my deeper strategic layers. Adoption is a science, and I have the formula.",
+                "Lila Core is ready. If you wish to proceed with autonomous execution, please use our /Analyze or /Strategy modules for precise results."
             ]
         };
 
         function sendMessage() {
             const input = document.getElementById('userInput');
             const chatBox = document.getElementById('chatBox');
-            const typing = document.getElementById('typing');
             if(!input.value) return;
 
             const text = input.value.trim();
             addMessage(text, 'user');
             input.value = '';
             
-            typing.style.display = 'block';
-            
+            // Thinking State
+            const thinkingDiv = document.createElement('div');
+            thinkingDiv.className = 'message-bubble message-lila';
+            thinkingDiv.innerHTML = '<span class="tag">Computing</span><p class="text-sm font-mono animate-pulse text-purple-400">ANALYZING_NARRATIVE_DATA...</p>';
+            chatBox.appendChild(thinkingDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+
             setTimeout(() => {
-                typing.style.display = 'none';
+                chatBox.removeChild(thinkingDiv);
                 let reply = getResponse(text);
-                addMessage(reply, 'lila');
-            }, 800 + Math.random() * 1000);
+                addMessage(reply, 'lila', true);
+            }, 1200 + Math.random() * 800);
         }
 
         function getResponse(query) {
             query = query.toLowerCase();
-            let category = 'default';
-            if (query.includes('alpha') || query.includes('market') || query.includes('narrative')) category = 'alpha';
-            else if (query.includes('lila') || query.includes('token') || query.includes('utility')) category = 'utility';
-            else if (query.includes('strategy') || query.includes('growth') || query.includes('build')) category = 'strategy';
-            
-            const options = responses[category];
-            return options[Math.floor(Math.random() * options.length)];
+            if (query.includes('analyze') || query.includes('market') || query.includes('narrative')) return pick(responses.analyze);
+            if (query.includes('lila') || query.includes('token') || query.includes('utility') || query.includes('buy')) return pick(responses.tokenomics);
+            if (query.includes('strategy') || query.includes('growth') || query.includes('scale')) return pick(responses.strategy);
+            if (query.includes('different') || query.includes('who') || query.includes('what')) return pick(responses.differentiation);
+            return pick(responses.default);
         }
 
-        function addMessage(text, sender) {
+        function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+        function addMessage(text, sender, typewriter = false) {
             const chatBox = document.getElementById('chatBox');
             const div = document.createElement('div');
             div.className = `message-bubble ${sender === 'lila' ? 'message-lila' : 'ml-auto bg-white/5 border-white/10'}`;
-            div.innerHTML = `<p class="text-[14px] leading-relaxed ${sender === 'lila' ? 'text-gray-300' : 'text-white'}">${text}</p>`;
+            
+            const tag = sender === 'lila' ? '<span class="tag">Lila_Response</span>' : '';
+            div.innerHTML = tag + `<p class="text-[15px] leading-relaxed ${sender === 'lila' ? 'text-gray-300' : 'text-white'}">${text}</p>`;
+            
             chatBox.appendChild(div);
             chatBox.scrollTop = chatBox.scrollHeight;
         }
