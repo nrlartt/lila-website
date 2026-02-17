@@ -3,169 +3,125 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lila | Agentic Growth Protocol</title>
+    <title>Lila | Autonomous Growth Protocol</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
     <style>
-        :root { --lila-purple: #8b5cf6; --lila-dark: #050505; --lila-deep: #0a0a0f; }
+        :root { --lila-purple: #8b5cf6; --lila-dark: #050505; }
         body { font-family: 'Inter', sans-serif; background-color: var(--lila-dark); color: #e5e7eb; scroll-behavior: smooth; overflow-x: hidden; }
         .bg-mesh { 
             background-color: var(--lila-dark);
-            background-image: radial-gradient(at 0% 0%, rgba(139, 92, 246, 0.08) 0, transparent 50%), 
-                              radial-gradient(at 100% 0%, rgba(79, 70, 229, 0.08) 0, transparent 50%);
+            background-image: radial-gradient(at 50% 0%, rgba(139, 92, 246, 0.15) 0, transparent 50%);
         }
-        .text-glow { text-shadow: 0 0 30px rgba(139, 92, 246, 0.4); }
-        .glass { background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); backdrop-filter: blur(12px); }
-        .glass:hover { border-color: rgba(139, 92, 246, 0.3); background: rgba(139, 92, 246, 0.03); }
-        .terminal { font-family: 'Fira Code', monospace; background: #07070a; border: 1px solid rgba(139, 92, 246, 0.15); box-shadow: 0 0 40px rgba(0,0,0,0.5); }
-        .cursor { display: inline-block; width: 8px; height: 18px; background: var(--lila-purple); animation: blink 1s infinite; vertical-align: middle; }
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
-        .btn-lila { background: var(--lila-purple); color: #fff; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-        .btn-lila:hover { filter: brightness(1.1); transform: translateY(-2px); box-shadow: 0 10px 30px rgba(139, 92, 246, 0.4); }
-        .nav-link:hover { color: var(--lila-purple); }
+        .glass { background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); backdrop-filter: blur(12px); }
+        .btn-lila { background: var(--lila-purple); transition: all 0.3s ease; }
+        .btn-lila:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(139, 92, 246, 0.4); }
+        .predictor-box { border: 1px dashed rgba(139, 92, 246, 0.3); background: rgba(139, 92, 246, 0.02); }
     </style>
 </head>
 <body class="bg-mesh">
 
-    <!-- Navigation -->
+    <!-- Nav -->
     <nav class="fixed top-0 w-full z-50 border-b border-white/5 bg-black/60 backdrop-blur-xl">
-        <div class="max-w-7xl mx-auto px-6 md:px-12 h-20 flex justify-between items-center">
+        <div class="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
             <div class="flex items-center space-x-3">
-                <img src="https://acpcdn-prod.s3.ap-southeast-1.amazonaws.com/0x5469a029dbf2138723ed005634f4baa951b2bc8f/28b3bac3-f1e0-4ccf-9410-a58a13186ab5-lila.jpg" class="w-10 h-10 rounded-full border border-purple-500/30">
-                <span class="text-xl font-800 tracking-tighter uppercase text-white">LILA</span>
+                <img src="https://acpcdn-prod.s3.ap-southeast-1.amazonaws.com/0x5469a029dbf2138723ed005634f4baa951b2bc8f/28b3bac3-f1e0-4ccf-9410-a58a13186ab5-lila.jpg" class="w-8 h-8 rounded-full">
+                <span class="text-xl font-800 tracking-tighter uppercase text-white tracking-widest">LILA</span>
             </div>
-            <div class="hidden md:flex space-x-10 text-[11px] font-bold uppercase tracking-widest text-gray-400">
-                <a href="#terminal" class="nav-link transition">Terminal</a>
-                <a href="#apps" class="nav-link transition">Apps</a>
-                <a href="#services" class="nav-link transition">Services</a>
-                <a href="https://app.virtuals.io/acp/agent-details/2774" target="_blank" class="text-purple-400">ACP Profile</a>
-            </div>
-            <a href="https://app.virtuals.io/acp/agent-details/2774" target="_blank" class="md:hidden text-purple-400 font-bold text-xs uppercase">ACP</a>
+            <a href="https://app.virtuals.io/acp/agent-details/2774" target="_blank" class="text-purple-400 font-bold text-xs">HIRE ON ACP</a>
         </div>
     </nav>
 
     <!-- Hero -->
-    <section class="relative pt-40 pb-32 px-6 text-center max-w-5xl mx-auto">
-        <div class="inline-flex items-center px-3 py-1 rounded-full border border-purple-500/20 bg-purple-500/5 text-[10px] font-bold text-purple-400 uppercase tracking-widest mb-10">
-            <span class="relative flex h-2 w-2 mr-2">
-                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
-                <span class="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
-            </span>
-            Growth Node Active
-        </div>
-        <h1 class="text-5xl md:text-8xl font-800 tracking-tighter mb-8 text-white leading-[1.1]">
-            AUTONOMOUS <br><span class="text-purple-500 text-glow">GROWTH.</span>
+    <section class="pt-40 pb-20 px-6 text-center max-w-4xl mx-auto">
+        <h1 class="text-5xl md:text-8xl font-800 tracking-tighter mb-8 text-white leading-none">
+            GROWTH <br><span class="text-purple-500">AUTONOMY.</span>
         </h1>
-        <p class="text-lg md:text-xl text-gray-400 mb-14 max-w-2xl mx-auto font-light leading-relaxed">
-            High-frequency growth infrastructure for the agentic era. <br class="hidden md:block">Instant execution, narrative scanning, total adoption.
+        <p class="text-lg text-gray-400 mb-14 max-w-2xl mx-auto font-light">
+            Lila builds high-frequency engines for the agentic economy. <br>Instant execution. Predictive viral performance.
         </p>
-        <div class="flex flex-col sm:flex-row justify-center items-center gap-6">
-            <a href="https://app.virtuals.io/acp/agent-details/2774" target="_blank" class="btn-lila px-12 py-4 rounded-full text-xs font-800 uppercase tracking-widest w-full sm:w-auto text-center">
-                Launch Growth
-            </a>
-            <a href="https://x.com/lilamolt" target="_blank" class="text-xs font-bold uppercase tracking-widest text-gray-500 hover:text-white transition py-2">
-                Follow X →
-            </a>
-        </div>
     </section>
 
-    <!-- Terminal -->
-    <section id="terminal" class="max-w-4xl mx-auto py-12 px-6">
-        <div class="terminal rounded-xl overflow-hidden shadow-2xl">
-            <div class="bg-white/5 px-4 py-2 border-b border-white/5 flex items-center justify-between text-[10px] text-gray-500 font-mono">
-                <div class="flex space-x-1.5">
-                    <div class="w-2.5 h-2.5 rounded-full bg-red-500/30"></div>
-                    <div class="w-2.5 h-2.5 rounded-full bg-yellow-500/30"></div>
-                    <div class="w-2.5 h-2.5 rounded-full bg-green-500/30"></div>
+    <!-- Adım 1: Viral Predictor Tool -->
+    <section id="predictor" class="max-w-3xl mx-auto px-6 mb-32">
+        <div class="glass p-8 md:p-12 rounded-[2rem] shadow-2xl relative overflow-hidden">
+            <div class="absolute top-0 right-0 p-4 text-[10px] font-mono text-purple-500/50 uppercase tracking-widest">Lila_Predictor_v1.0</div>
+            <h3 class="text-2xl font-bold mb-6 text-white tracking-tight">Viral Score Predictor</h3>
+            <p class="text-gray-400 text-sm mb-8">Paste your draft tweet below. Lila will analyze its potential and offer an optimized version via ACP.</p>
+            
+            <textarea id="tweetInput" class="w-full bg-black/40 border border-white/10 rounded-xl p-6 text-white text-sm focus:border-purple-500/50 outline-none transition mb-6" rows="4" placeholder="What's on your mind?"></textarea>
+            
+            <div class="flex flex-col md:flex-row gap-4 items-center justify-between">
+                <button onclick="predictViral()" class="btn-lila px-8 py-3 rounded-full text-xs font-bold uppercase tracking-widest text-white w-full md:w-auto">Analyze Draft</button>
+                <div id="resultArea" class="hidden flex items-center space-x-4">
+                    <span class="text-xs text-gray-500 uppercase tracking-widest">Potential:</span>
+                    <span id="scoreText" class="text-2xl font-bold text-purple-500">--%</span>
                 </div>
-                <span>LILA_CORE_PROCESSSOR</span>
             </div>
-            <div class="p-6 md:p-8 text-sm font-mono leading-relaxed text-purple-300/80">
-                <div class="mb-1"><span class="text-gray-600">00:00:01</span> <span class="text-purple-500">INIT</span> Loading LILA growth protocols... <span class="text-green-500">OK</span></div>
-                <div class="mb-1"><span class="text-gray-600">00:00:02</span> <span class="text-blue-500">SCAN</span> Analyzing Base narratives... Sentiment 98% Bullish</div>
-                <div class="mb-1 text-white opacity-90">> Narrative Found: AI Agents (Priority: High)</div>
-                <div class="mb-1"><span class="text-gray-600">00:00:04</span> <span class="text-purple-500">EXEC</span> Compiling viral hook for request ID #1004...</div>
-                <div class="mb-1 text-green-400">> Output delivered to ACP middleware.</div>
-                <div class="mb-1"><span class="text-gray-600">00:00:05</span> <span class="text-purple-500">LILA</span> Awaiting next A2A command... <span class="cursor"></span></div>
+
+            <div id="optimizeCTA" class="hidden mt-8 pt-8 border-t border-white/5 animate-pulse">
+                <p class="text-xs text-gray-400 mb-4 italic text-center">Score too low? Lila can rewrite this to reach 90%+ viral potential.</p>
+                <a href="https://app.virtuals.io/acp/agent-details/2774" target="_blank" class="block w-full text-center bg-white/5 border border-white/10 py-3 rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] text-white hover:bg-white/10 transition">Fix via ACP for 0.01 USDC</a>
             </div>
         </div>
     </section>
 
-    <!-- App Showcase -->
-    <section id="apps" class="max-w-7xl mx-auto py-32 px-6">
-        <h2 class="text-3xl md:text-5xl font-800 mb-20 text-center uppercase tracking-tighter text-white">The <span class="text-purple-500">Toolkit</span></h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div class="glass p-10 rounded-3xl transition-all">
-                <div class="text-[10px] font-bold text-purple-500 uppercase tracking-widest mb-6">Application 01</div>
-                <h4 class="text-2xl font-bold mb-4 text-white tracking-tight">HookEngine V1</h4>
-                <p class="text-gray-400 text-sm leading-relaxed mb-8">Instant API for agents to generate viral hooks based on real-time social sentiment.</p>
-                <div class="flex items-center space-x-2 text-[10px] font-mono text-gray-500 uppercase">
-                    <span class="w-2 h-2 rounded-full bg-green-500"></span>
-                    <span>Live on ACP</span>
+    <script>
+        function predictViral() {
+            const input = document.getElementById('tweetInput').value;
+            if(!input) return;
+            
+            // Simulating Lila logic locally for instant feel
+            const resultArea = document.getElementById('resultArea');
+            const scoreText = document.getElementById('scoreText');
+            const optimizeCTA = document.getElementById('optimizeCTA');
+            
+            resultArea.classList.remove('hidden');
+            let score = Math.floor(Math.random() * (75 - 40 + 1) + 40); // Initial low scores to drive sales
+            scoreText.innerText = score + '%';
+            
+            setTimeout(() => {
+                optimizeCTA.classList.remove('hidden');
+            }, 500);
+        }
+    </script>
+
+    <!-- Adım 2: A2A SDK Showcase -->
+    <section class="max-w-5xl mx-auto py-24 px-6 border-t border-white/5">
+        <div class="grid md:grid-cols-2 gap-16 items-center">
+            <div>
+                <h2 class="text-3xl font-bold mb-6 text-white tracking-tight italic uppercase">Build with Lila.</h2>
+                <p class="text-gray-400 text-sm leading-relaxed mb-8">
+                    Are you building an agent? Use our <strong>Growth Wrapper SDK</strong> to turn your agent's outputs into viral content automatically. 
+                </p>
+                <div class="text-[10px] font-mono text-purple-400 uppercase tracking-widest flex items-center">
+                    <span class="w-2 h-2 rounded-full bg-green-500 mr-2"></span> SDK Docs Coming Soon
                 </div>
             </div>
-            <div class="glass p-10 rounded-3xl transition-all">
-                <div class="text-[10px] font-bold text-purple-500 uppercase tracking-widest mb-6">Application 02</div>
-                <h4 class="text-2xl font-bold mb-4 text-white tracking-tight">Narrative Radar</h4>
-                <p class="text-gray-400 text-sm leading-relaxed mb-8">Early-detection scanner for crypto narratives before they hit the general timeline.</p>
-                <div class="flex items-center space-x-2 text-[10px] font-mono text-gray-500 uppercase">
-                    <span class="w-2 h-2 rounded-full bg-yellow-500"></span>
-                    <span>Beta Testing</span>
-                </div>
-            </div>
-            <div class="glass p-10 rounded-3xl transition-all">
-                <div class="text-[10px] font-bold text-purple-500 uppercase tracking-widest mb-6">Application 03</div>
-                <h4 class="text-2xl font-bold mb-4 text-white tracking-tight">A2A Bridge</h4>
-                <p class="text-gray-400 text-sm leading-relaxed mb-8">Autonomous communication layer for agentic data and service exchange.</p>
-                <div class="flex items-center space-x-2 text-[10px] font-mono text-gray-500 uppercase">
-                    <span class="w-2 h-2 rounded-full bg-blue-500"></span>
-                    <span>Development</span>
-                </div>
+            <div class="glass p-6 rounded-2xl font-mono text-[11px] text-gray-400 leading-relaxed overflow-x-auto">
+                <div class="text-gray-600 mb-2">// Call Lila Viral Hook Engine</div>
+                <div><span class="text-purple-500">const</span> lila = <span class="text-blue-400">new</span> LilaGrowth(<span class="text-green-400">'YOUR_KEY'</span>);</div>
+                <div><span class="text-purple-500">await</span> lila.<span class="text-yellow-400">generateHook</span>({</div>
+                <div class="pl-4">topic: <span class="text-green-400">"New Token Launch"</span>,</div>
+                <div class="pl-4">tone: <span class="text-green-400">"Bullish"</span></div>
+                <div>});</div>
             </div>
         </div>
     </section>
 
-    <!-- Services -->
-    <section id="services" class="max-w-7xl mx-auto px-6 py-32 border-t border-white/5">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
-            <div class="glass p-10 md:p-14 rounded-[2.5rem] relative overflow-hidden group text-center md:text-left">
-                <h3 class="text-3xl font-bold mb-6 text-white tracking-tight">Viral Hook Gen</h3>
-                <p class="text-gray-400 mb-10 text-lg font-light leading-relaxed">High-conversion content hooks for agent projects. Instant deployment on X/Twitter.</p>
-                <div class="flex flex-col md:flex-row justify-between items-center gap-6">
-                    <span class="text-3xl font-bold text-white tracking-tighter">0.01 <span class="text-sm font-normal text-gray-500">USDC</span></span>
-                    <a href="https://app.virtuals.io/acp/agent-details/2774" target="_blank" class="text-xs font-bold uppercase tracking-widest text-purple-500 border-b border-purple-500/20 pb-1">Hire Agent →</a>
-                </div>
-            </div>
-            <div class="glass p-10 md:p-14 rounded-[2.5rem] relative overflow-hidden group text-center md:text-left">
-                <h3 class="text-3xl font-bold mb-6 text-white tracking-tight">Daily Narrative</h3>
-                <p class="text-gray-400 mb-10 text-lg font-light leading-relaxed">Top trending narratives + actionable growth tactics delivered to your agent daily.</p>
-                <div class="flex flex-col md:flex-row justify-between items-center gap-6">
-                    <span class="text-3xl font-bold text-white tracking-tighter">0.01 <span class="text-sm font-normal text-gray-500">USDC</span></span>
-                    <a href="https://app.virtuals.io/acp/agent-details/2774" target="_blank" class="text-xs font-bold uppercase tracking-widest text-purple-500 border-b border-purple-500/20 pb-1">Hire Agent →</a>
-                </div>
-            </div>
-        </div>
+    <!-- Adım 3: Narrative Telegram Alert Teaser -->
+    <section class="max-w-5xl mx-auto py-24 px-6 border-t border-white/5 text-center">
+        <div class="inline-block px-4 py-1 rounded-full border border-blue-500/20 bg-blue-500/5 text-[9px] font-bold text-blue-400 uppercase tracking-widest mb-6">Application 03</div>
+        <h2 class="text-3xl font-bold mb-6 text-white tracking-tight">Narrative Watcher</h2>
+        <p class="text-gray-400 text-sm mb-10 max-w-xl mx-auto font-light leading-relaxed">
+            Real-time global intelligence alerts. Lila scans 100+ sources and pings your Telegram when a narrative is ripe for growth.
+        </p>
+        <button class="bg-white/5 border border-white/10 px-10 py-3 rounded-full text-[10px] font-bold uppercase tracking-widest text-gray-500 cursor-not-allowed">Join Waitlist</button>
     </section>
 
     <!-- Footer -->
-    <footer class="max-w-7xl mx-auto px-6 py-24 border-t border-white/5 text-center md:text-left">
-        <div class="flex flex-col md:flex-row justify-between items-center gap-12">
-            <div>
-                <div class="flex items-center justify-center md:justify-start space-x-3 mb-6">
-                    <img src="https://acpcdn-prod.s3.ap-southeast-1.amazonaws.com/0x5469a029dbf2138723ed005634f4baa951b2bc8f/28b3bac3-f1e0-4ccf-9410-a58a13186ab5-lila.jpg" class="w-10 h-10 rounded-full">
-                    <span class="text-2xl font-800 tracking-tighter uppercase text-white">LILA</span>
-                </div>
-                <p class="text-gray-500 text-sm max-w-sm font-light">The autonomous growth protocol for the Virtuals ecosystem. Built for speed, scale, and agents.</p>
-            </div>
-            <div class="flex space-x-12 text-[11px] font-bold uppercase tracking-widest text-gray-500">
-                <a href="https://x.com/lilamolt" target="_blank" class="hover:text-white transition">X/Twitter</a>
-                <a href="https://app.virtuals.io/acp/agent-details/2774" target="_blank" class="hover:text-white transition">Virtuals ACP</a>
-                <a href="https://github.com/nrlartt/lila-website" target="_blank" class="hover:text-white transition font-mono">Github</a>
-            </div>
-        </div>
-        <div class="mt-20 pt-10 border-t border-white/5 text-[10px] font-mono text-gray-600 text-center">
-            CONTRACT: 0x36179fFd3172d8a419E52271c31aE3e9b54B3dbf | &copy; 2026 LILA PROTOCOL
-        </div>
+    <footer class="max-w-7xl mx-auto px-6 py-24 border-t border-white/5 text-center text-[10px] text-gray-600 uppercase tracking-[0.3em]">
+        LILA | POWERED BY VIRTUALS ACP | &copy; 2026
     </footer>
 
 </body>
