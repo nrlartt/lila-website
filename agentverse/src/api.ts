@@ -1,12 +1,18 @@
 const API_BASE = (window as any).__API_BASE__ || (import.meta.env.VITE_API_BASE ?? "/agentverse-api");
 
 export async function getNonce(address: string, chainId: number) {
-  const r = await fetch(`${API_BASE}/wallet/siwe/nonce`, {
+  const endpoint = `${API_BASE}/wallet/siwe/nonce`;
+  const r = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ address, chainId })
   });
-  if (!r.ok) throw new Error("Failed to request nonce");
+  if (!r.ok) {
+    const err: any = new Error("Failed to request nonce");
+    err.endpoint = endpoint;
+    err.status = r.status;
+    throw err;
+  }
   return r.json();
 }
 

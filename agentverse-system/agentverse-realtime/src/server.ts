@@ -77,11 +77,11 @@ wss.on("connection", (ws: ClientSocket) => {
       const hello = helloSchema.safeParse(msg);
       if (!hello.success) return ws.close(4401, "Invalid hello message");
 
-      const user = verifyWsToken(hello.data.wsToken, secret);
-      if (!user) return ws.close(4401, "Invalid wsToken");
+      const requestedToken = hello.data.wsToken;
+      const user = requestedToken && requestedToken !== "guest" ? verifyWsToken(requestedToken, secret) : null;
 
       authed = true;
-      ws.userId = user.sub;
+      ws.userId = user?.sub || `guest_${Math.random().toString(36).slice(2, 8)}`;
       ws.worldId = "lobby";
       ws.pos = { worldId: "lobby", x: 0, y: 1.6, z: 0 };
       clearTimeout(timeout);

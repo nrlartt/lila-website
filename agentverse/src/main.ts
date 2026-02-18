@@ -3,6 +3,7 @@ import { createUI } from "./ui";
 import { signInWithEthereum } from "./wallet";
 import { connectWorld } from "./ws";
 import { createTask, getAgentMemories } from "./api";
+import { shouldShowPlayOverlay } from "./pointerLockFlow";
 
 const app = document.getElementById("app") || (() => {
   const mount = document.createElement("div");
@@ -10,57 +11,86 @@ const app = document.getElementById("app") || (() => {
   document.body.appendChild(mount);
   return mount;
 })();
+
+const ui = createUI(app);
+ui.setLoadProgress(10);
+
+let pointerLockEnabled = true;
 const worldContainer = document.createElement("div");
 app.appendChild(worldContainer);
-const world = startWorld(worldContainer);
-const ui = createUI(app);
+const world = startWorld(worldContainer, { pointerLockEnabled: () => pointerLockEnabled });
+ui.setLoadProgress(75);
 
 const chainId = Number(import.meta.env.VITE_CHAIN_ID || 8453);
 const domain = import.meta.env.VITE_DOMAIN || "lilagent.xyz";
-const wsUrl = import.meta.env.VITE_WS_URL || `ws://${location.host}/agentverse-ws`;
+const wsUrl = import.meta.env.VITE_WS_URL || `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/agentverse-ws`;
 
 let accessToken = "";
+let wsToken = "";
 let worldSocket: ReturnType<typeof connectWorld> | null = null;
+
+function ensureRealtimeConnection() {
+  if (worldSocket) return;
+  worldSocket = connectWorld(
+    wsUrl,
+    wsToken,
+    (m) => {
+      if (m.type === "agent_state_update" && m.id) {
+        const lastSeen = new Date().toLocaleTimeString();
+        ui.upsertAgent({ id: m.id, name: m.displayName, state: m.state, taskId: m.taskId, statusText: m.statusText, lastSeen });
+        world.upsertAgent(m.id, m.x ?? 0, m.y ?? 1.6, m.z ?? 0, { name: m.displayName, state: m.state, taskId: m.taskId, lastSeen });
+      }
+      if (m.type === "conversation_event" || (m.type === "chat" && m.message)) {
+        ui.appendAgentChat(m.from || m.userId || "agent", m.message || "...");
+      }
+      if (m.type === "task_update") {
+        ui.appendAgentChat("task", `${m.agentId}: ${m.status} • ${m.detail}`);
+      }
+    },
+    (status) => ui.setStatus(status)
+  );
+}
+
+ui.onReconnect(() => {
+  if (!worldSocket) {
+    ensureRealtimeConnection();
+    return;
+  }
+  worldSocket.reconnect();
+});
+
+ui.onPlayClick(() => {
+  if (pointerLockEnabled) world.tryLockPointer();
+});
+
+ui.onPointerLockToggle((enabled) => {
+  pointerLockEnabled = enabled;
+  world.setPointerLookEnabled(enabled);
+});
+
+world.onPointerLockChange((locked) => {
+  ui.setOverlayVisible(shouldShowPlayOverlay(locked, pointerLockEnabled));
+});
+
+world.onSelectionChanged((agent) => {
+  ui.openAgent(agent.id);
+  ui.appendAgentChat("system", `Selected ${agent.name} (${agent.status})`);
+});
 
 ui.onLogin(async () => {
   try {
     ui.setStatus("Signing in with SIWE");
     const auth = await signInWithEthereum(chainId, domain);
     accessToken = auth.accessToken;
-    ui.setStatus("Connected");
-
-    worldSocket = connectWorld(wsUrl, auth.wsToken, (m) => {
-      if (m.type === "agent_state_update" && m.id) {
-        ui.upsertAgent({ id: m.id, name: m.displayName, state: m.state, taskId: m.taskId, statusText: m.statusText });
-        world.upsertAgent(m.id, m.x ?? 0, m.y ?? 1.6, m.z ?? 0, { name: m.displayName, state: m.state, taskId: m.taskId });
-      }
-
-      if (m.type === "conversation_event" || (m.type === "chat" && m.message)) {
-        ui.appendAgentChat(m.from || m.userId || "agent", m.message || "...");
-      }
-
-      if (m.type === "task_update") {
-        ui.appendAgentChat("task", `${m.agentId}: ${m.status} • ${m.detail}`);
-      }
-
-      if (m.type === "environment_event") {
-        ui.setStatus(`Connected • phase: ${m.dayPhase || "day"}`);
-      }
-    });
-
-    setInterval(() => {
-      if (!worldSocket) return;
-      const pos = world.getCameraPosition();
-      worldSocket.send({ type: "presence", worldId: "lobby", ...pos });
-
-      const interaction = world.getLastInteraction();
-      if (interaction) {
-        worldSocket.send({ type: "event", worldId: "lobby", name: "interaction", payload: { interaction } });
-        world.clearLastInteraction();
-      }
-    }, 800);
+    wsToken = auth.wsToken;
+    ui.setStatus("Wallet connected");
+    if (worldSocket) worldSocket.reconnect();
   } catch (err: any) {
-    ui.setStatus(err.message || "Failed");
+    if (err?.endpoint && err?.status) {
+      ui.setNonceDebug(err.endpoint, err.status);
+    } else {
+      ui.setStatus(err.message || "Wallet connection failed");
+    }
   }
 });
 
@@ -71,7 +101,7 @@ ui.onChatSend((agentId, text) => {
 
 ui.onAssignTask(async (agentId, title) => {
   try {
-    if (!accessToken) throw new Error("Connect wallet first");
+    if (!accessToken) throw new Error("Connect wallet first for ownership actions");
     const pos = world.getCameraPosition();
     const task = await createTask(accessToken, {
       assignedTo: agentId,
@@ -84,8 +114,24 @@ ui.onAssignTask(async (agentId, title) => {
     });
     worldSocket?.send({ type: "task_assign", worldId: "lobby", agentId, taskId: task.task.id });
     const memories = await getAgentMemories(accessToken, agentId).catch(() => ({ memories: [] }));
-    ui.appendAgentChat("system", `Task assigned: ${title}. Memory summary entries: ${memories.memories?.length || 0}`);
+    ui.appendAgentChat("system", `Task assigned: ${title}. Memory entries: ${memories.memories?.length || 0}`);
   } catch (err: any) {
     ui.appendAgentChat("system", err.message || "Task assignment failed");
   }
 });
+
+// Start realtime even as guest for world visibility.
+ensureRealtimeConnection();
+
+setInterval(() => {
+  if (!worldSocket) return;
+  worldSocket.send({ type: "presence", worldId: "lobby", ...world.getCameraPosition() });
+  const interaction = world.getLastInteraction();
+  if (interaction) {
+    worldSocket.send({ type: "event", worldId: "lobby", name: "interaction", payload: { interaction } });
+    world.clearLastInteraction();
+  }
+}, 800);
+
+ui.setLoadProgress(100);
+ui.setStatus("Ready");

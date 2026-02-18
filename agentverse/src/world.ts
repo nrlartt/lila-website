@@ -1,224 +1,282 @@
 import * as THREE from "three";
-import RAPIER from "@dimforge/rapier3d-compat";
+import { PointerLockControls } from "three/examples/jsm/controls/PointerLockControls.js";
+import { createInputManager } from "./inputManager";
 
-type AgentMeshRecord = {
-  body: THREE.Mesh;
+type AgentMeta = { name?: string; state?: string; taskId?: string; lastSeen?: string };
+
+type AgentRecord = {
+  id: string;
+  mesh: THREE.Mesh;
   label: HTMLDivElement;
-  name: string;
-  state: string;
-  taskId?: string;
+  meta: Required<Pick<AgentMeta, "name" | "state" | "lastSeen">> & Pick<AgentMeta, "taskId">;
 };
 
-export function startWorld(container: HTMLElement) {
+export function startWorld(container: HTMLElement, options?: { pointerLockEnabled?: () => boolean }) {
   const scene = new THREE.Scene();
-  let rapierWorld: any = null;
-  let playerBody: any = null;
-  (async () => {
-    try {
-      await RAPIER.init();
-      rapierWorld = new RAPIER.World({ x: 0, y: -9.81, z: 0 });
-      const ground = RAPIER.ColliderDesc.cuboid(160, 0.1, 160);
-      rapierWorld.createCollider(ground);
-      const rb = RAPIER.RigidBodyDesc.dynamic().setTranslation(0, 1.8, 12).setCanSleep(false);
-      playerBody = rapierWorld.createRigidBody(rb);
-      rapierWorld.createCollider(RAPIER.ColliderDesc.capsule(0.9, 0.35), playerBody);
-      (window as any).__agentversePhysics__ = "ready";
-    } catch {
-      (window as any).__agentversePhysics__ = "fallback";
-    }
-  })();
-  scene.background = new THREE.Color(0x7ea9e1);
+  scene.fog = new THREE.Fog(0x89b7ff, 70, 420);
 
-  const camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.1, 1200);
-  camera.position.set(0, 1.8, 12);
+  const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1200);
+  camera.position.set(0, 1.7, 8);
 
   const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.shadowMap.enabled = true;
+  renderer.domElement.style.position = "fixed";
+  renderer.domElement.style.inset = "0";
+  renderer.domElement.style.zIndex = "1";
   container.appendChild(renderer.domElement);
 
-  const overlay = document.createElement("div");
-  overlay.style.position = "fixed";
-  overlay.style.inset = "0";
-  overlay.style.pointerEvents = "none";
-  container.appendChild(overlay);
+  const controls = new PointerLockControls(camera, renderer.domElement);
+  scene.add(controls.getObject());
 
-  const ambient = new THREE.AmbientLight(0xffffff, 0.5);
-  scene.add(ambient);
+  const labelLayer = document.createElement("div");
+  labelLayer.style.position = "fixed";
+  labelLayer.style.inset = "0";
+  labelLayer.style.pointerEvents = "none";
+  labelLayer.style.zIndex = "2";
+  container.appendChild(labelLayer);
+
+  // Lighting + sky baseline
+  const hemi = new THREE.HemisphereLight(0xdbeafe, 0x233143, 0.85);
+  scene.add(hemi);
   const sun = new THREE.DirectionalLight(0xffffff, 1.0);
-  sun.position.set(30, 60, 10);
+  sun.position.set(120, 180, 40);
   sun.castShadow = true;
   scene.add(sun);
 
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(320, 320), new THREE.MeshStandardMaterial({ color: 0x334155 }));
-  floor.rotation.x = -Math.PI / 2;
-  floor.receiveShadow = true;
-  floor.userData.zone = "plaza";
-  scene.add(floor);
+  const sky = new THREE.Mesh(
+    new THREE.SphereGeometry(900, 32, 24),
+    new THREE.ShaderMaterial({
+      side: THREE.BackSide,
+      uniforms: {
+        topColor: { value: new THREE.Color(0x7fb3ff) },
+        bottomColor: { value: new THREE.Color(0xe5f0ff) }
+      },
+      vertexShader: `varying vec3 vPos; void main(){ vPos = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+      fragmentShader: `uniform vec3 topColor; uniform vec3 bottomColor; varying vec3 vPos; void main(){ float h = normalize(vPos).y * 0.5 + 0.5; gl_FragColor = vec4(mix(bottomColor, topColor, smoothstep(0.0,1.0,h)),1.0); }`
+    })
+  );
+  scene.add(sky);
 
-  // Modular zones
-  const zones = [
-    { name: "town", color: 0x3f6212, x: 0, z: 0, w: 70, h: 70 },
-    { name: "forest", color: 0x14532d, x: -95, z: -40, w: 80, h: 100 },
-    { name: "plaza", color: 0x334155, x: 95, z: 0, w: 80, h: 80 },
-    { name: "interior", color: 0x1f2937, x: 0, z: 95, w: 60, h: 50 }
-  ];
+  // Procedural tiled ground
+  const groundTex = new THREE.CanvasTexture(createGroundCanvas());
+  groundTex.wrapS = THREE.RepeatWrapping;
+  groundTex.wrapT = THREE.RepeatWrapping;
+  groundTex.repeat.set(32, 32);
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(600, 600),
+    new THREE.MeshStandardMaterial({ map: groundTex, roughness: 0.98, metalness: 0.02 })
+  );
+  ground.rotation.x = -Math.PI / 2;
+  ground.receiveShadow = true;
+  scene.add(ground);
 
-  zones.forEach((z) => {
-    const area = new THREE.Mesh(
-      new THREE.PlaneGeometry(z.w, z.h),
-      new THREE.MeshStandardMaterial({ color: z.color, roughness: 0.95, metalness: 0.02 })
-    );
-    area.rotation.x = -Math.PI / 2;
-    area.position.set(z.x, 0.02, z.z);
-    area.userData.zone = z.name;
-    scene.add(area);
-  });
+  // Spawn marker
+  const spawn = new THREE.Mesh(new THREE.CircleGeometry(1.4, 40), new THREE.MeshBasicMaterial({ color: 0x22d3ee }));
+  spawn.rotation.x = -Math.PI / 2;
+  spawn.position.set(0, 0.03, 0);
+  scene.add(spawn);
 
-  // Interactive objects
-  const interactables: THREE.Object3D[] = [];
-  const makeTerminal = (x: number, z: number, name: string) => {
-    const g = new THREE.Group();
-    const base = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1, 1.2), new THREE.MeshStandardMaterial({ color: 0x111827 }));
-    base.position.y = 0.5;
-    const screen = new THREE.Mesh(new THREE.BoxGeometry(1, 0.6, 0.1), new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0ea5e9, emissiveIntensity: 0.2 }));
-    screen.position.set(0, 1.1, 0.55);
-    g.add(base, screen);
-    g.position.set(x, 0, z);
-    g.userData.interaction = name;
-    scene.add(g);
-    interactables.push(g);
-  };
-  makeTerminal(90, 0, "Task Terminal");
-  makeTerminal(0, 95, "Building Control");
+  // Landmarks: plaza, portal, two buildings, billboard
+  const landmarks: THREE.Object3D[] = [];
+  const plaza = new THREE.Mesh(new THREE.CylinderGeometry(10, 10, 0.5, 32), new THREE.MeshStandardMaterial({ color: 0x334155 }));
+  plaza.position.set(0, 0.25, -20);
+  scene.add(plaza); landmarks.push(plaza);
 
-  const makeDoor = (x: number, z: number) => {
-    const door = new THREE.Mesh(new THREE.BoxGeometry(2, 3, 0.2), new THREE.MeshStandardMaterial({ color: 0x92400e }));
-    door.position.set(x, 1.5, z);
-    door.userData.interaction = "Door";
-    scene.add(door);
-    interactables.push(door);
-  };
-  makeDoor(6, 95);
+  const portal = new THREE.Mesh(new THREE.TorusGeometry(4, 0.5, 16, 64), new THREE.MeshStandardMaterial({ color: 0x7c3aed, emissive: 0x3b0764 }));
+  portal.position.set(0, 5, -40);
+  scene.add(portal); landmarks.push(portal);
 
-  // Low-poly decor
-  for (let i = 0; i < 50; i++) {
-    const t = new THREE.Mesh(new THREE.ConeGeometry(1.2, 3, 8), new THREE.MeshStandardMaterial({ color: 0x15803d }));
-    t.position.set(-130 + Math.random() * 70, 1.5, -90 + Math.random() * 100);
-    scene.add(t);
-  }
+  const buildingA = new THREE.Mesh(new THREE.BoxGeometry(16, 10, 14), new THREE.MeshStandardMaterial({ color: 0xe2e8f0 }));
+  buildingA.position.set(24, 5, -28);
+  scene.add(buildingA); landmarks.push(buildingA);
 
-  const entities = new Map<string, AgentMeshRecord>();
-  const keys: Record<string, boolean> = {};
-  addEventListener("keydown", (e) => (keys[e.code] = true));
-  addEventListener("keyup", (e) => (keys[e.code] = false));
+  const buildingB = new THREE.Mesh(new THREE.BoxGeometry(12, 8, 12), new THREE.MeshStandardMaterial({ color: 0xcbd5e1 }));
+  buildingB.position.set(-24, 4, -25);
+  scene.add(buildingB); landmarks.push(buildingB);
 
-  let dayT = 0;
+  const billboard = new THREE.Mesh(new THREE.PlaneGeometry(10, 5), new THREE.MeshStandardMaterial({ color: 0x0f172a, emissive: 0x111827 }));
+  billboard.position.set(0, 5, -8);
+  scene.add(billboard); landmarks.push(billboard);
+
+  const agents = new Map<string, AgentRecord>();
+  const input = createInputManager(window);
+  const moveVelocity = new THREE.Vector3();
+  const moveDirection = new THREE.Vector3();
   const raycaster = new THREE.Raycaster();
-  const center = new THREE.Vector2(0, 0);
+  const pointer = new THREE.Vector2();
+  let selectedAgentId: string | null = null;
+  let selectionChangedCb: ((payload: { id: string; name: string; status: string; lastSeen: string }) => void) | null = null;
 
-  function upsertAgent(id: string, x: number, y: number, z: number, meta?: { name?: string; state?: string; taskId?: string }) {
-    let rec = entities.get(id);
+  function ensureAgent(id: string) {
+    let rec = agents.get(id);
     if (!rec) {
-      const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.35, 0.9, 4, 8), new THREE.MeshStandardMaterial({ color: 0xa855f7 }));
-      body.castShadow = true;
-      scene.add(body);
+      const material = new THREE.MeshStandardMaterial({ color: 0xa855f7, emissive: 0x000000 });
+      const mesh = new THREE.Mesh(new THREE.CapsuleGeometry(0.4, 1.0, 4, 10), material);
+      mesh.castShadow = true;
+      mesh.userData.agentId = id;
+      scene.add(mesh);
 
       const label = document.createElement("div");
       label.style.position = "absolute";
-      label.style.padding = "4px 6px";
-      label.style.borderRadius = "6px";
-      label.style.background = "rgba(2,6,23,.76)";
+      label.style.padding = "2px 6px";
       label.style.border = "1px solid #334155";
+      label.style.borderRadius = "6px";
+      label.style.background = "rgba(2,6,23,.75)";
       label.style.color = "#e2e8f0";
-      label.style.font = "11px Inter,system-ui,sans-serif";
-      overlay.appendChild(label);
+      label.style.font = "11px Inter, sans-serif";
+      labelLayer.appendChild(label);
 
-      rec = { body, label, name: meta?.name || id, state: meta?.state || "idle", taskId: meta?.taskId };
-      entities.set(id, rec);
+      rec = {
+        id,
+        mesh,
+        label,
+        meta: { name: id, state: "idle", lastSeen: new Date().toISOString() }
+      };
+      agents.set(id, rec);
     }
-    rec.body.position.set(x, y, z);
-    if (meta?.name) rec.name = meta.name;
-    if (meta?.state) rec.state = meta.state;
-    if (meta?.taskId !== undefined) rec.taskId = meta.taskId;
-    rec.label.textContent = `${rec.name} • ${rec.state}${rec.taskId ? ` • ${rec.taskId}` : ""}`;
+    return rec;
   }
 
-  function getCameraPosition() {
-    return { x: camera.position.x, y: camera.position.y, z: camera.position.z };
+  function upsertAgent(id: string, x: number, y: number, z: number, meta?: AgentMeta) {
+    const rec = ensureAgent(id);
+    rec.mesh.position.set(x, Math.max(1.0, y), z);
+    rec.meta.name = meta?.name ?? rec.meta.name;
+    rec.meta.state = meta?.state ?? rec.meta.state;
+    rec.meta.lastSeen = meta?.lastSeen ?? new Date().toISOString();
+    rec.meta.taskId = meta?.taskId;
+    rec.label.textContent = `${rec.meta.name} • ${rec.meta.state}`;
   }
 
-  function getInteractableInFront() {
-    raycaster.setFromCamera(center, camera);
-    const hits = raycaster.intersectObjects(interactables, true);
-    return hits[0]?.object;
+  function setPointerLookEnabled(enabled: boolean) {
+    if (!enabled && controls.isLocked) controls.unlock();
   }
 
+  function tryLockPointer() {
+    if (options?.pointerLockEnabled && !options.pointerLockEnabled()) return false;
+    controls.lock();
+    return true;
+  }
+
+  renderer.domElement.addEventListener("click", (ev) => {
+    if (controls.isLocked) {
+      pointer.x = (ev.clientX / window.innerWidth) * 2 - 1;
+      pointer.y = -(ev.clientY / window.innerHeight) * 2 + 1;
+      const meshes = [...agents.values()].map((a) => a.mesh);
+      raycaster.setFromCamera(pointer, camera);
+      const hit = raycaster.intersectObjects(meshes, false)[0];
+      if (hit?.object?.userData?.agentId) {
+        const id = hit.object.userData.agentId as string;
+        selectedAgentId = id;
+        for (const a of agents.values()) {
+          const m = a.mesh.material as THREE.MeshStandardMaterial;
+          m.emissive.setHex(a.id === selectedAgentId ? 0x3b82f6 : 0x000000);
+        }
+        const rec = agents.get(id)!;
+        selectionChangedCb?.({ id, name: rec.meta.name, status: rec.meta.state, lastSeen: rec.meta.lastSeen });
+      }
+    }
+  });
+
+  const clock = new THREE.Clock();
   function animate() {
     requestAnimationFrame(animate);
-
-    // movement (Rapier physics when available)
-    const speed = 2.8;
-    if (playerBody && rapierWorld) {
-      const vel = { x: 0, y: playerBody.linvel().y, z: 0 };
-      if (keys.KeyW) vel.z -= speed;
-      if (keys.KeyS) vel.z += speed;
-      if (keys.KeyA) vel.x -= speed;
-      if (keys.KeyD) vel.x += speed;
-      playerBody.setLinvel(vel, true);
-      rapierWorld.step();
-      const t = playerBody.translation();
-      camera.position.set(t.x, Math.max(1.7, t.y), t.z);
-    } else {
-      const fallback = 0.18;
-      if (keys.KeyW) camera.position.z -= fallback;
-      if (keys.KeyS) camera.position.z += fallback;
-      if (keys.KeyA) camera.position.x -= fallback;
-      if (keys.KeyD) camera.position.x += fallback;
-    }
-
-    // interaction key
-    if (keys.KeyE) {
-      const hit = getInteractableInFront();
-      if (hit?.userData?.interaction) {
-        (window as any).__agentverseLastInteraction__ = hit.userData.interaction;
-      }
-      keys.KeyE = false;
-    }
+    const dt = Math.min(clock.getDelta(), 0.05);
 
     // day/night cycle
-    dayT += 0.0015;
-    const cycle = (Math.sin(dayT) + 1) / 2; // 0..1
-    sun.intensity = 0.2 + cycle * 1.0;
-    ambient.intensity = 0.2 + cycle * 0.5;
-    scene.background = new THREE.Color().setHSL(0.60, 0.45, 0.12 + cycle * 0.55);
-    sun.position.set(Math.cos(dayT) * 80, 25 + cycle * 65, Math.sin(dayT) * 80);
+    const t = performance.now() * 0.00005;
+    const cycle = (Math.sin(t) + 1) * 0.5;
+    sun.intensity = 0.35 + cycle * 0.9;
+    hemi.intensity = 0.25 + cycle * 0.55;
 
-    // billboards
-    for (const rec of entities.values()) {
-      const p = rec.body.position.clone();
-      p.y += 1.35;
-      p.project(camera);
-      const x = (p.x * 0.5 + 0.5) * window.innerWidth;
-      const y = (-p.y * 0.5 + 0.5) * window.innerHeight;
-      rec.label.style.transform = `translate(-50%, -50%) translate(${x}px,${y}px)`;
-      rec.label.style.display = p.z < 1 ? "block" : "none";
+    if (controls.isLocked) {
+      moveDirection.set(0, 0, 0);
+      if (input.state.forward) moveDirection.z -= 1;
+      if (input.state.backward) moveDirection.z += 1;
+      if (input.state.left) moveDirection.x -= 1;
+      if (input.state.right) moveDirection.x += 1;
+      moveDirection.normalize();
+
+      const targetSpeed = input.state.sprint ? 8.0 : 4.2;
+      const accel = 18.0;
+      const damping = 10.0;
+
+      const cameraForward = new THREE.Vector3();
+      camera.getWorldDirection(cameraForward);
+      cameraForward.y = 0;
+      cameraForward.normalize();
+      const cameraRight = new THREE.Vector3().crossVectors(cameraForward, new THREE.Vector3(0, 1, 0)).normalize();
+
+      const desired = new THREE.Vector3()
+        .addScaledVector(cameraForward, moveDirection.z * targetSpeed)
+        .addScaledVector(cameraRight, -moveDirection.x * targetSpeed);
+
+      moveVelocity.lerp(desired, Math.min(1, accel * dt));
+      moveVelocity.multiplyScalar(1 - Math.min(0.9, damping * dt * 0.02));
+      controls.getObject().position.addScaledVector(moveVelocity, dt);
+      controls.getObject().position.y = 1.7; // ground clamp
+    }
+
+    if (input.consumeInteract()) {
+      (window as any).__agentverseLastInteraction__ = "context_interaction";
+    }
+
+    // Keep in bounds
+    const p = controls.getObject().position;
+    p.x = Math.max(-280, Math.min(280, p.x));
+    p.z = Math.max(-280, Math.min(280, p.z));
+
+    for (const rec of agents.values()) {
+      const screen = rec.mesh.position.clone();
+      screen.y += 1.4;
+      screen.project(camera);
+      rec.label.style.transform = `translate(-50%,-50%) translate(${(screen.x * 0.5 + 0.5) * window.innerWidth}px,${(-screen.y * 0.5 + 0.5) * window.innerHeight}px)`;
+      rec.label.style.display = screen.z < 1 ? "block" : "none";
     }
 
     renderer.render(scene, camera);
   }
   animate();
 
-  addEventListener("resize", () => {
+  window.addEventListener("resize", () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
   });
 
   return {
+    onSelectionChanged(cb: (payload: { id: string; name: string; status: string; lastSeen: string }) => void) {
+      selectionChangedCb = cb;
+    },
+    onPointerLockChange(cb: (locked: boolean) => void) {
+      document.addEventListener("pointerlockchange", () => cb(controls.isLocked));
+    },
     upsertAgent,
-    getCameraPosition,
+    tryLockPointer,
+    setPointerLookEnabled,
+    isPointerLocked: () => controls.isLocked,
+    getCameraPosition: () => {
+      const pos = controls.getObject().position;
+      return { x: pos.x, y: pos.y, z: pos.z };
+    },
     getLastInteraction: () => (window as any).__agentverseLastInteraction__ || null,
     clearLastInteraction: () => ((window as any).__agentverseLastInteraction__ = null)
   };
+}
+
+function createGroundCanvas() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext("2d")!;
+  ctx.fillStyle = "#4b5563";
+  ctx.fillRect(0, 0, 256, 256);
+  for (let y = 0; y < 16; y++) {
+    for (let x = 0; x < 16; x++) {
+      const jitter = (Math.random() * 14) | 0;
+      ctx.fillStyle = `rgb(${72 + jitter},${82 + jitter},${92 + jitter})`;
+      ctx.fillRect(x * 16, y * 16, 15, 15);
+    }
+  }
+  return canvas;
 }
