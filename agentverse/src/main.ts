@@ -24,7 +24,9 @@ ui.setLoadProgress(70);
 const chainId = Number(import.meta.env.VITE_CHAIN_ID || 8453);
 const domain = import.meta.env.VITE_DOMAIN || "lilagent.xyz";
 const wsUrl = import.meta.env.VITE_WS_URL || `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/realtime`;
-const apiBase = (window as any).__API_BASE__ || (import.meta.env.VITE_API_BASE ?? "/agentverse-api");
+const rawApiBase = (typeof window !== "undefined" && (window as any).__API_BASE__) || (import.meta.env.VITE_API_BASE ?? "/agentverse-api");
+const apiBase = String(rawApiBase).startsWith("http") || String(rawApiBase).startsWith("/") ? String(rawApiBase) : `/${String(rawApiBase)}`;
+
 
 let accessToken = "";
 let wsToken = "";
