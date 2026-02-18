@@ -5,3 +5,5 @@ export const heartbeatSchema = z.object({ type: z.literal("heartbeat"), ts: z.nu
 export const presenceSchema = z.object({ type: z.literal("presence"), worldId: z.string(), x: z.number(), y: z.number(), z: z.number() });
 export const chatSchema = z.object({ type: z.literal("chat"), worldId: z.string(), message: z.string().max(300) });
 export const eventSchema = z.object({ type: z.literal("event"), worldId: z.string(), name: z.string(), payload: z.record(z.any()).default({}) });
+export const interactionSchema = z.object({ type: z.literal("interaction"), worldId: z.string(), targetAgentId: z.string(), action: z.string(), payload: z.record(z.any()).default({}) });
+export const taskAssignSchema = z.object({ type: z.literal("task_assign"), worldId: z.string(), agentId: z.string(), taskId: z.string() });
