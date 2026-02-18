@@ -27,6 +27,13 @@ interface ClientSocket extends WebSocket {
   tokenAuthed?: boolean;
 }
 
+type AgentProfile = {
+  personality: string;
+  capabilities: string[];
+};
+
+type AgentMemory = { at: number; type: "interaction" | "task" | "observation"; content: string };
+
 const pub = createClient({ url: process.env.REDIS_URL });
 const sub = createClient({ url: process.env.REDIS_URL });
 await pub.connect();
@@ -46,8 +53,31 @@ const wss = new WebSocketServer({ noServer: true, maxPayload: maxBytes });
 const clients = new Set<ClientSocket>();
 const brain = new AgentBrainEngine();
 
-for (const id of ["npc_alpha", "npc_beta", "npc_gamma", "npc_delta", "npc_sigma"]) {
+const seedAgents = ["npc_alpha", "npc_beta", "npc_gamma", "npc_delta", "npc_sigma"];
+for (const id of seedAgents) {
   brain.upsertAgent({ id, worldId: "lobby", displayName: id.replace("npc_", "").toUpperCase() });
+}
+
+const profiles = new Map<string, AgentProfile>([
+  ["npc_alpha", { personality: "Calm scout focused on mapping paths.", capabilities: ["navigation", "observation"] }],
+  ["npc_beta", { personality: "Analytical coordinator who assigns tasks.", capabilities: ["planning", "coordination"] }],
+  ["npc_gamma", { personality: "Friendly greeter that monitors arrivals.", capabilities: ["social", "support"] }],
+  ["npc_delta", { personality: "Operations specialist for plaza patrol.", capabilities: ["patrol", "reporting"] }],
+  ["npc_sigma", { personality: "Experimental researcher for portal events.", capabilities: ["research", "interaction"] }]
+]);
+
+const memories = new Map<string, AgentMemory[]>();
+for (const id of seedAgents) {
+  memories.set(id, [
+    { at: Date.now() - 60_000, type: "observation", content: "Initialized in lobby." },
+    { at: Date.now() - 30_000, type: "observation", content: "Monitoring nearby activity." }
+  ]);
+}
+
+function pushMemory(agentId: string, memory: AgentMemory) {
+  const list = memories.get(agentId) || [];
+  list.unshift(memory);
+  memories.set(agentId, list.slice(0, 20));
 }
 
 function send(ws: ClientSocket, payload: unknown) {
@@ -59,6 +89,14 @@ function parseTokenFromRequest(req: http.IncomingMessage) {
   if (auth?.startsWith("Bearer ")) return auth.slice(7);
   const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
   return url.searchParams.get("token") || undefined;
+}
+
+function agentReply(agentId: string, text: string) {
+  const t = text.toLowerCase();
+  if (t.includes("portal")) return "I can route you to the Portal Gate. Stay close to the central road.";
+  if (t.includes("patrol")) return "Patrol task acknowledged. I will sweep the plaza perimeter.";
+  if (t.includes("meet")) return "I can coordinate a meetup. Tell me which agent you want to meet.";
+  return "Acknowledged. I am processing your request and updating local memory.";
 }
 
 server.on("upgrade", (req, socket, head) => {
@@ -108,7 +146,6 @@ wss.on("connection", (ws: ClientSocket) => {
 
     const hello = helloSchema.safeParse(msg);
     if (hello.success) {
-      // runtime auth upgrade via hello token
       const token = hello.data.wsToken;
       const user = token && token !== "guest" ? verifyWsToken(token, secret) : null;
       if (user) {
@@ -128,13 +165,80 @@ wss.on("connection", (ws: ClientSocket) => {
     if (presence.success) {
       ws.worldId = presence.data.worldId;
       ws.pos = { x: presence.data.x, y: presence.data.y, z: presence.data.z };
-      await pub.publish("agentverse:broadcast", JSON.stringify({ ...presence.data, type: "agent_state_update", id: ws.userId, displayName: ws.userId, state: "walking" }));
+      await pub.publish("agentverse:broadcast", JSON.stringify({ ...presence.data, type: "agent_state_update", id: ws.userId, displayName: ws.userId, state: "walking", lastSeen: new Date().toISOString() }));
       return;
     }
 
-    if (chatSchema.safeParse(msg).success || eventSchema.safeParse(msg).success || interactionSchema.safeParse(msg).success || taskAssignSchema.safeParse(msg).success) {
-      await pub.publish("agentverse:broadcast", JSON.stringify({ ...msg, userId: ws.userId }));
+    const interaction = interactionSchema.safeParse(msg);
+    if (interaction.success) {
+      const { targetAgentId, action } = interaction.data;
+      if (action === "chat") {
+        const text = String(interaction.data.payload?.text || "");
+        pushMemory(targetAgentId, { at: Date.now(), type: "interaction", content: `User ${ws.userId} said: ${text}` });
+        const reply = agentReply(targetAgentId, text);
+        setTimeout(async () => {
+          await pub.publish("agentverse:broadcast", JSON.stringify({
+            type: "conversation_event",
+            worldId: interaction.data.worldId,
+            from: targetAgentId,
+            to: ws.userId,
+            message: reply,
+            ts: Date.now()
+          }));
+          pushMemory(targetAgentId, { at: Date.now(), type: "interaction", content: `Replied: ${reply}` });
+        }, 450);
+        return;
+      }
+
+      if (action === "profile_request") {
+        const profile = profiles.get(targetAgentId) || { personality: "Adaptive autonomous agent.", capabilities: ["navigation"] };
+        const recent = (memories.get(targetAgentId) || []).slice(0, 5);
+        send(ws, {
+          type: "profile_event",
+          worldId: interaction.data.worldId,
+          agentId: targetAgentId,
+          personality: profile.personality,
+          capabilities: profile.capabilities,
+          memories: recent
+        });
+        return;
+      }
+
+      await pub.publish("agentverse:broadcast", JSON.stringify({ ...interaction.data, type: "interaction", userId: ws.userId }));
       return;
+    }
+
+    const taskAssign = taskAssignSchema.safeParse(msg);
+    if (taskAssign.success) {
+      pushMemory(taskAssign.data.agentId, { at: Date.now(), type: "task", content: `Assigned task ${taskAssign.data.taskId}` });
+      await pub.publish("agentverse:broadcast", JSON.stringify({
+        type: "task_update",
+        worldId: taskAssign.data.worldId,
+        agentId: taskAssign.data.agentId,
+        status: "accepted",
+        detail: `Task accepted: ${taskAssign.data.taskId}`,
+        ts: Date.now()
+      }));
+      return;
+    }
+
+    const event = eventSchema.safeParse(msg);
+    if (event.success) {
+      if (event.data.name === "snapshot_request") {
+        send(ws, {
+          type: "world_snapshot",
+          worldId: ws.worldId || "lobby",
+          ts: Date.now(),
+          agents: brain.getSnapshots(ws.worldId || "lobby")
+        });
+        return;
+      }
+      await pub.publish("agentverse:broadcast", JSON.stringify({ ...event.data, userId: ws.userId }));
+      return;
+    }
+
+    if (chatSchema.safeParse(msg).success) {
+      await pub.publish("agentverse:broadcast", JSON.stringify({ ...msg, userId: ws.userId }));
     }
   });
 
@@ -142,15 +246,32 @@ wss.on("connection", (ws: ClientSocket) => {
 });
 
 setInterval(() => {
-  brain.tick(Date.now());
+  const now = Date.now();
+  brain.tick(now);
+
   for (const ws of clients) {
     if (!ws.worldId) continue;
     send(ws, {
       type: "world_update",
       worldId: ws.worldId,
-      ts: Date.now(),
+      ts: now,
       agents: brain.getSnapshots(ws.worldId)
     });
+  }
+
+  // proximity greeting baseline
+  const snaps = brain.getSnapshots("lobby");
+  if (snaps.length >= 2 && Math.random() < 0.1) {
+    const a = snaps[0];
+    const b = snaps[1];
+    pub.publish("agentverse:broadcast", JSON.stringify({
+      type: "conversation_event",
+      worldId: "lobby",
+      from: a.id,
+      to: b.id,
+      message: `Hello ${b.displayName}, maintaining patrol route in lobby.`,
+      ts: now
+    }));
   }
 }, 200);
 

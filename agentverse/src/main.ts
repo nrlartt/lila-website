@@ -57,6 +57,9 @@ async function ensureRealtimeConnection() {
       if (m.type === "task_update") {
         ui.appendAgentChat("task", `${m.agentId}: ${m.status} • ${m.detail}`);
       }
+      if (m.type === "profile_event") {
+        ui.renderProfile({ personality: m.personality || "-", memories: m.memories || [] });
+      }
     },
     (status) => ui.setStatus(status),
     (state, detail) => ui.setWsState(state, detail)
@@ -88,6 +91,13 @@ world.onPointerLockChange((locked) => {
 world.onSelectionChanged((agent) => {
   ui.openAgent(agent.id);
   ui.appendAgentChat("system", `Selected ${agent.name} (${agent.status})`);
+  worldSocket?.send({
+    type: "interaction",
+    worldId: "lobby",
+    targetAgentId: agent.id,
+    action: "profile_request",
+    payload: {}
+  });
 });
 world.onHeadingChange((h) => ui.setCompass(h));
 

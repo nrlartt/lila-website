@@ -32,7 +32,8 @@ export function createUI(root: HTMLElement) {
       <div id="selectedSeen" style="margin-top:2px;font-size:12px;color:#94a3b8">Last seen: -</div>
       <div style="display:flex;gap:8px;margin-top:10px">
         <button id="tabChat" style="padding:6px 10px;border-radius:6px;border:1px solid #334155;background:#1e293b;color:#e2e8f0">Chat</button>
-        <button id="tabTask" style="padding:6px 10px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#e2e8f0">Assign Task</button>
+        <button id="tabTask" style="padding:6px 10px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#e2e8f0">Tasks</button>
+        <button id="tabProfile" style="padding:6px 10px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#e2e8f0">Profile</button>
       </div>
       <div id="chatTab" style="margin-top:8px;display:block">
         <div id="chatLog" style="height:120px;overflow:auto;background:#020617;border:1px solid #1e293b;border-radius:6px;padding:6px;font-size:12px"></div>
@@ -42,8 +43,18 @@ export function createUI(root: HTMLElement) {
         </div>
       </div>
       <div id="taskTab" style="margin-top:8px;display:none">
-        <input id="taskInput" placeholder="Task title" style="width:100%;padding:6px;background:#0f172a;border:1px solid #334155;color:#e2e8f0;border-radius:6px" />
+        <select id="taskPreset" style="width:100%;padding:6px;background:#0f172a;border:1px solid #334155;color:#e2e8f0;border-radius:6px">
+          <option>Go to Portal</option>
+          <option>Meet Agent X</option>
+          <option>Patrol Plaza</option>
+        </select>
+        <input id="taskInput" placeholder="Optional custom task title" style="margin-top:8px;width:100%;padding:6px;background:#0f172a;border:1px solid #334155;color:#e2e8f0;border-radius:6px" />
         <button id="taskAssign" style="margin-top:8px;padding:6px 10px;border-radius:6px;border:none;cursor:pointer">Assign</button>
+      </div>
+      <div id="profileTab" style="margin-top:8px;display:none;font-size:12px">
+        <div id="profilePersonality" style="color:#cbd5e1">Personality: -</div>
+        <div style="margin-top:6px;color:#93c5fd">Last 5 memories</div>
+        <ul id="profileMemories" style="margin-top:4px;padding-left:16px;max-height:120px;overflow:auto"></ul>
       </div>
     </div>
 
@@ -79,14 +90,14 @@ export function createUI(root: HTMLElement) {
     (document.getElementById("selectedSeen") as HTMLElement).textContent = `Last seen: ${a.lastSeen || "-"}`;
   };
 
-  (document.getElementById("tabChat") as HTMLButtonElement).onclick = () => {
-    (document.getElementById("chatTab") as HTMLElement).style.display = "block";
-    (document.getElementById("taskTab") as HTMLElement).style.display = "none";
+  const showTab = (tab: "chat" | "task" | "profile") => {
+    (document.getElementById("chatTab") as HTMLElement).style.display = tab === "chat" ? "block" : "none";
+    (document.getElementById("taskTab") as HTMLElement).style.display = tab === "task" ? "block" : "none";
+    (document.getElementById("profileTab") as HTMLElement).style.display = tab === "profile" ? "block" : "none";
   };
-  (document.getElementById("tabTask") as HTMLButtonElement).onclick = () => {
-    (document.getElementById("chatTab") as HTMLElement).style.display = "none";
-    (document.getElementById("taskTab") as HTMLElement).style.display = "block";
-  };
+  (document.getElementById("tabChat") as HTMLButtonElement).onclick = () => showTab("chat");
+  (document.getElementById("tabTask") as HTMLButtonElement).onclick = () => showTab("task");
+  (document.getElementById("tabProfile") as HTMLButtonElement).onclick = () => showTab("profile");
 
   return {
     setStatus: (v: string) => ((document.getElementById("status") as HTMLElement).textContent = `Status: ${v}`),
@@ -124,12 +135,22 @@ export function createUI(root: HTMLElement) {
     onAssignTask: (cb: (agentId: string, title: string) => void) => {
       (document.getElementById("taskAssign") as HTMLButtonElement).onclick = () => {
         if (!selectedAgentId) return;
+        const preset = (document.getElementById("taskPreset") as HTMLSelectElement).value;
         const i = document.getElementById("taskInput") as HTMLInputElement;
-        const title = i.value.trim();
-        if (!title) return;
+        const title = i.value.trim() || preset;
         cb(selectedAgentId, title);
         i.value = "";
       };
+    },
+    renderProfile: (payload: { personality: string; memories: Array<{ at: number; type: string; content: string }> }) => {
+      (document.getElementById("profilePersonality") as HTMLElement).textContent = `Personality: ${payload.personality}`;
+      const list = document.getElementById("profileMemories") as HTMLUListElement;
+      list.innerHTML = "";
+      for (const m of payload.memories || []) {
+        const li = document.createElement("li");
+        li.textContent = `${new Date(m.at).toLocaleTimeString()} • ${m.type}: ${m.content}`;
+        list.appendChild(li);
+      }
     },
     appendAgentChat: (from: string, text: string) => {
       const log = document.getElementById("chatLog") as HTMLDivElement;

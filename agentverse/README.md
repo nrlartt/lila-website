@@ -16,6 +16,32 @@
 - If realtime status shows disconnect, use the **Reconnect** button.
 - Wallet is optional for world entry, but required for ownership actions like task assignment.
 
+## Realtime Debugging Guide
+
+### Common close codes
+
+- `1000`: Normal close.
+- `1006`: Abnormal close (network/proxy interruption).
+- `4401`: Authentication issue (token invalid/expired).
+- `4408`: Realtime rate limit exceeded.
+
+### Verify WS URL
+
+1. Confirm UI shows the exact WS URL in the status card.
+2. Open browser console and verify `[AgentVerse WS] Connecting` log target.
+3. If behind HTTPS, ensure URL uses `wss://`.
+
+### Reverse proxy checklist
+
+1. Proxy must forward `Upgrade` and `Connection: upgrade` headers.
+2. Proxy timeout must allow long-lived websocket connections.
+3. Route `/agentverse-ws` must point to realtime service port.
+
+### CORS / origin notes
+
+- Browser WebSockets do not use classic CORS preflight, but upstream gateway/firewall may enforce origin allowlists.
+- If connections fail only in browser and not with smoke test, verify origin filtering rules.
+
 ## Debug Checklist
 
 ### Pointer lock not activating
