@@ -24,13 +24,24 @@ ui.setLoadProgress(75);
 const chainId = Number(import.meta.env.VITE_CHAIN_ID || 8453);
 const domain = import.meta.env.VITE_DOMAIN || "lilagent.xyz";
 const wsUrl = import.meta.env.VITE_WS_URL || `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/agentverse-ws`;
+const apiBase = (window as any).__API_BASE__ || (import.meta.env.VITE_API_BASE ?? "/agentverse-api");
 
 let accessToken = "";
 let wsToken = "";
 let worldSocket: ReturnType<typeof connectWorld> | null = null;
 
-function ensureRealtimeConnection() {
+async function ensureGuestWsToken() {
+  if (wsToken) return wsToken;
+  const r = await fetch(`${apiBase}/realtime/guest-token`);
+  if (!r.ok) throw new Error(`Guest token failed (${r.status})`);
+  const data = await r.json();
+  wsToken = data.wsToken;
+  return wsToken;
+}
+
+async function ensureRealtimeConnection() {
   if (worldSocket) return;
+  await ensureGuestWsToken();
   worldSocket = connectWorld(
     wsUrl,
     wsToken,
@@ -47,13 +58,15 @@ function ensureRealtimeConnection() {
         ui.appendAgentChat("task", `${m.agentId}: ${m.status} • ${m.detail}`);
       }
     },
-    (status) => ui.setStatus(status)
+    (status) => ui.setStatus(status),
+    (state, detail) => ui.setWsState(state, detail)
   );
+  worldSocket.send({ type: "event", worldId: "lobby", name: "snapshot_request", payload: {} });
 }
 
-ui.onReconnect(() => {
+ui.onReconnect(async () => {
   if (!worldSocket) {
-    ensureRealtimeConnection();
+    await ensureRealtimeConnection();
     return;
   }
   worldSocket.reconnect();
@@ -76,6 +89,7 @@ world.onSelectionChanged((agent) => {
   ui.openAgent(agent.id);
   ui.appendAgentChat("system", `Selected ${agent.name} (${agent.status})`);
 });
+world.onHeadingChange((h) => ui.setCompass(h));
 
 ui.onLogin(async () => {
   try {
@@ -84,7 +98,10 @@ ui.onLogin(async () => {
     accessToken = auth.accessToken;
     wsToken = auth.wsToken;
     ui.setStatus("Wallet connected");
-    if (worldSocket) worldSocket.reconnect();
+    if (worldSocket) {
+      worldSocket.setToken(wsToken);
+      worldSocket.reconnect();
+    }
   } catch (err: any) {
     if (err?.endpoint && err?.status) {
       ui.setNonceDebug(err.endpoint, err.status);
@@ -121,7 +138,7 @@ ui.onAssignTask(async (agentId, title) => {
 });
 
 // Start realtime even as guest for world visibility.
-ensureRealtimeConnection();
+ensureRealtimeConnection().catch((err) => ui.setStatus(err.message || "Realtime bootstrap failed"));
 
 setInterval(() => {
   if (!worldSocket) return;

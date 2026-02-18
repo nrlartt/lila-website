@@ -26,9 +26,12 @@
 
 ### WebSocket disconnect reasons
 1. Check browser console for `[AgentVerse WS]` logs.
-2. Verify WS URL path is `/agentverse-ws`.
-3. Inspect close/retry logs and backoff timing.
+2. Verify WS URL path is `/agentverse-ws` and visible in UI.
+3. Inspect close code/reason and last error shown in UI.
 4. Use the **Reconnect** button to force a fresh attempt.
+5. Run smoke test from `agentverse-system`:
+   - `node scripts/ws_smoke_test.js`
+   - Optional: `AGENTVERSE_WS_URL=wss://lilagent.xyz/agentverse-ws AGENTVERSE_WS_TOKEN=<token> node scripts/ws_smoke_test.js`
 
 ### Nonce request failure
 1. Attempt wallet connect and inspect status text.

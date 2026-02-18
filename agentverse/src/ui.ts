@@ -10,6 +10,10 @@ export function createUI(root: HTMLElement) {
     <div style="position:fixed;top:12px;left:12px;z-index:20;background:rgba(8,10,20,.86);padding:12px;border:1px solid #334155;border-radius:10px;max-width:360px;color:#e2e8f0;font-family:Inter,system-ui,sans-serif;pointer-events:auto">
       <div style="font-weight:700;letter-spacing:.08em">AGENTVERSE</div>
       <div id="status" style="margin-top:8px;font-size:12px;color:#94a3b8">Status: booting</div>
+      <div id="wsBadge" style="margin-top:4px;font-size:12px;color:#facc15">WS: CONNECTING</div>
+      <div id="wsMeta" style="margin-top:2px;font-size:11px;color:#93c5fd">URL: -</div>
+      <div id="wsError" style="margin-top:2px;font-size:11px;color:#fda4af">Close: - | Error: -</div>
+      <div id="compass" style="margin-top:2px;font-size:11px;color:#a7f3d0">Compass: N</div>
       <div id="load" style="margin-top:4px;font-size:12px;color:#93c5fd">Loading: 0%</div>
       <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
         <button id="login" style="padding:8px 12px;background:#fff;color:#000;border:none;border-radius:6px;cursor:pointer">Connect Wallet</button>
@@ -86,7 +90,13 @@ export function createUI(root: HTMLElement) {
 
   return {
     setStatus: (v: string) => ((document.getElementById("status") as HTMLElement).textContent = `Status: ${v}`),
+    setWsState: (state: "CONNECTING" | "CONNECTED" | "DISCONNECTED" | "RETRYING", detail: { url: string; closeCode?: number; closeReason?: string; error?: string }) => {
+      (document.getElementById("wsBadge") as HTMLElement).textContent = `WS: ${state}`;
+      (document.getElementById("wsMeta") as HTMLElement).textContent = `URL: ${detail.url}`;
+      (document.getElementById("wsError") as HTMLElement).textContent = `Close: ${detail.closeCode ?? "-"} ${detail.closeReason ?? ""} | Error: ${detail.error ?? "-"}`;
+    },
     setLoadProgress: (p: number) => ((document.getElementById("load") as HTMLElement).textContent = `Loading: ${Math.round(p)}%`),
+    setCompass: (label: string) => ((document.getElementById("compass") as HTMLElement).textContent = `Compass: ${label}`),
     onLogin: (cb: () => void) => ((document.getElementById("login") as HTMLButtonElement).onclick = cb),
     onReconnect: (cb: () => void) => ((document.getElementById("reconnect") as HTMLButtonElement).onclick = cb),
     onPlayClick: (cb: () => void) => ((document.getElementById("playBtn") as HTMLButtonElement).onclick = cb),

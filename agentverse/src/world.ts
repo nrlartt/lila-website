@@ -79,25 +79,52 @@ export function startWorld(container: HTMLElement, options?: { pointerLockEnable
 
   // Landmarks: plaza, portal, two buildings, billboard
   const landmarks: THREE.Object3D[] = [];
+  const addLandmarkLabel = (obj: THREE.Object3D, text: string) => {
+    const label = document.createElement("div");
+    label.textContent = text;
+    label.style.position = "absolute";
+    label.style.padding = "2px 6px";
+    label.style.border = "1px solid #1e293b";
+    label.style.borderRadius = "6px";
+    label.style.background = "rgba(15,23,42,.8)";
+    label.style.color = "#f8fafc";
+    label.style.font = "10px Inter, sans-serif";
+    labelLayer.appendChild(label);
+    (obj as any).__landmarkLabel = label;
+  };
+
   const plaza = new THREE.Mesh(new THREE.CylinderGeometry(10, 10, 0.5, 32), new THREE.MeshStandardMaterial({ color: 0x334155 }));
   plaza.position.set(0, 0.25, -20);
-  scene.add(plaza); landmarks.push(plaza);
+  scene.add(plaza); landmarks.push(plaza); addLandmarkLabel(plaza, "Plaza");
 
   const portal = new THREE.Mesh(new THREE.TorusGeometry(4, 0.5, 16, 64), new THREE.MeshStandardMaterial({ color: 0x7c3aed, emissive: 0x3b0764 }));
   portal.position.set(0, 5, -40);
-  scene.add(portal); landmarks.push(portal);
+  scene.add(portal); landmarks.push(portal); addLandmarkLabel(portal, "Portal Gate");
 
   const buildingA = new THREE.Mesh(new THREE.BoxGeometry(16, 10, 14), new THREE.MeshStandardMaterial({ color: 0xe2e8f0 }));
   buildingA.position.set(24, 5, -28);
-  scene.add(buildingA); landmarks.push(buildingA);
+  scene.add(buildingA); landmarks.push(buildingA); addLandmarkLabel(buildingA, "Research Hub");
 
   const buildingB = new THREE.Mesh(new THREE.BoxGeometry(12, 8, 12), new THREE.MeshStandardMaterial({ color: 0xcbd5e1 }));
   buildingB.position.set(-24, 4, -25);
-  scene.add(buildingB); landmarks.push(buildingB);
+  scene.add(buildingB); landmarks.push(buildingB); addLandmarkLabel(buildingB, "Ops Center");
+
+  const kiosk = new THREE.Mesh(new THREE.BoxGeometry(4, 3, 4), new THREE.MeshStandardMaterial({ color: 0x1d4ed8 }));
+  kiosk.position.set(12, 1.5, -8);
+  scene.add(kiosk); landmarks.push(kiosk); addLandmarkLabel(kiosk, "Task Kiosk");
 
   const billboard = new THREE.Mesh(new THREE.PlaneGeometry(10, 5), new THREE.MeshStandardMaterial({ color: 0x0f172a, emissive: 0x111827 }));
   billboard.position.set(0, 5, -8);
-  scene.add(billboard); landmarks.push(billboard);
+  scene.add(billboard); landmarks.push(billboard); addLandmarkLabel(billboard, "Live Board");
+
+  const fountain = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, 1, 24), new THREE.MeshStandardMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.8 }));
+  fountain.position.set(-12, 0.5, -12);
+  scene.add(fountain); landmarks.push(fountain); addLandmarkLabel(fountain, "Fountain");
+
+  const arch = new THREE.Mesh(new THREE.TorusGeometry(5, 0.6, 10, 32, Math.PI), new THREE.MeshStandardMaterial({ color: 0x475569 }));
+  arch.position.set(-36, 6, -38);
+  arch.rotation.z = Math.PI;
+  scene.add(arch); landmarks.push(arch); addLandmarkLabel(arch, "North Arch");
 
   const agents = new Map<string, AgentRecord>();
   const input = createInputManager(window);
@@ -106,7 +133,9 @@ export function startWorld(container: HTMLElement, options?: { pointerLockEnable
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
   let selectedAgentId: string | null = null;
+  let hoveredAgentId: string | null = null;
   let selectionChangedCb: ((payload: { id: string; name: string; status: string; lastSeen: string }) => void) | null = null;
+  let headingChangedCb: ((heading: string) => void) | null = null;
 
   function ensureAgent(id: string) {
     let rec = agents.get(id);
@@ -234,6 +263,34 @@ export function startWorld(container: HTMLElement, options?: { pointerLockEnable
       rec.label.style.display = screen.z < 1 ? "block" : "none";
     }
 
+    for (const lm of landmarks) {
+      const label = (lm as any).__landmarkLabel as HTMLDivElement | undefined;
+      if (!label) continue;
+      const point = lm.position.clone();
+      point.y += 3;
+      point.project(camera);
+      label.style.transform = `translate(-50%,-50%) translate(${(point.x * 0.5 + 0.5) * window.innerWidth}px,${(-point.y * 0.5 + 0.5) * window.innerHeight}px)`;
+      label.style.display = point.z < 1 ? "block" : "none";
+    }
+
+    // Hover highlight in pointer-lock center
+    raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+    const hoverHit = raycaster.intersectObjects([...agents.values()].map((a) => a.mesh), false)[0];
+    hoveredAgentId = hoverHit?.object?.userData?.agentId || null;
+    for (const a of agents.values()) {
+      const mat = a.mesh.material as THREE.MeshStandardMaterial;
+      if (a.id === selectedAgentId) mat.emissive.setHex(0x3b82f6);
+      else if (a.id === hoveredAgentId) mat.emissive.setHex(0x1d4ed8);
+      else mat.emissive.setHex(0x000000);
+    }
+
+    const forward = new THREE.Vector3();
+    camera.getWorldDirection(forward);
+    const heading = Math.atan2(forward.x, forward.z) * (180 / Math.PI);
+    const norm = (heading + 360) % 360;
+    const compass = norm >= 315 || norm < 45 ? "N" : norm < 135 ? "E" : norm < 225 ? "S" : "W";
+    headingChangedCb?.(`${compass} (${Math.round(norm)}°)`);
+
     renderer.render(scene, camera);
   }
   animate();
@@ -250,6 +307,9 @@ export function startWorld(container: HTMLElement, options?: { pointerLockEnable
     },
     onPointerLockChange(cb: (locked: boolean) => void) {
       document.addEventListener("pointerlockchange", () => cb(controls.isLocked));
+    },
+    onHeadingChange(cb: (heading: string) => void) {
+      headingChangedCb = cb;
     },
     upsertAgent,
     tryLockPointer,

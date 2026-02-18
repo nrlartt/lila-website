@@ -8,6 +8,7 @@ import worldRoutes from "./routes/world.js";
 import taskRoutes from "./routes/tasks.js";
 import memoryRoutes from "./routes/memories.js";
 import adminRoutes from "./routes/admin.js";
+import realtimeRoutes from "./routes/realtime.js";
 
 const app = express();
 app.use(express.json({ limit: "64kb" }));
@@ -21,6 +22,7 @@ app.use("/world", worldRoutes);
 app.use("/tasks", taskRoutes);
 app.use("/memories", memoryRoutes);
 app.use("/admin", adminRoutes);
+app.use("/realtime", realtimeRoutes);
 
 app.listen(config.port, () => {
   console.log(JSON.stringify({ level: "info", msg: "agentverse-api started", port: config.port }));

@@ -1,11 +1,17 @@
 type OnMessage = (m: any) => void;
 type OnStatus = (text: string) => void;
+type OnWsState = (state: "CONNECTING" | "CONNECTED" | "DISCONNECTED" | "RETRYING", detail: { url: string; closeCode?: number; closeReason?: string; error?: string }) => void;
 
-export function connectWorld(wsUrl: string, wsToken: string, onMessage: OnMessage, onStatus?: OnStatus) {
+export function connectWorld(wsUrl: string, wsToken: string, onMessage: OnMessage, onStatus?: OnStatus, onWsState?: OnWsState) {
   let ws: WebSocket | null = null;
   let retryCount = 0;
   let closedByUser = false;
+  let lastError = "";
+  let lastCloseCode = 0;
+  let lastCloseReason = "";
   const queue: any[] = [];
+
+  const url = wsUrl.startsWith("ws") ? wsUrl : `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}${wsUrl}`;
 
   const flush = () => {
     if (!ws || ws.readyState !== WebSocket.OPEN || queue.length === 0) return;
@@ -13,15 +19,19 @@ export function connectWorld(wsUrl: string, wsToken: string, onMessage: OnMessag
   };
 
   const connect = () => {
-    const url = wsUrl.startsWith("ws") ? wsUrl : `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}${wsUrl}`;
-    console.log("[AgentVerse WS] Connecting to", url);
+    console.log("[AgentVerse WS] Connecting", url);
     onStatus?.("Connecting realtime");
-    ws = new WebSocket(url);
+    onWsState?.("CONNECTING", { url, closeCode: lastCloseCode, closeReason: lastCloseReason, error: lastError });
+
+    const tokenParam = wsToken ? `?token=${encodeURIComponent(wsToken)}` : "";
+    ws = new WebSocket(`${url}${tokenParam}`);
 
     ws.onopen = () => {
-      console.log("[AgentVerse WS] Connected");
       retryCount = 0;
+      lastError = "";
+      console.log("[AgentVerse WS] Connected");
       onStatus?.("Realtime connected");
+      onWsState?.("CONNECTED", { url });
       ws?.send(JSON.stringify({ type: "hello", wsToken: wsToken || "guest" }));
       flush();
     };
@@ -36,16 +46,21 @@ export function connectWorld(wsUrl: string, wsToken: string, onMessage: OnMessag
     };
 
     ws.onerror = () => {
-      console.error("[AgentVerse WS] Socket error");
-      onStatus?.("Realtime error");
+      lastError = "Socket error";
+      console.error("[AgentVerse WS] Error");
     };
 
-    ws.onclose = () => {
+    ws.onclose = (ev) => {
+      lastCloseCode = ev.code;
+      lastCloseReason = ev.reason;
+      onWsState?.("DISCONNECTED", { url, closeCode: ev.code, closeReason: ev.reason, error: lastError });
       if (closedByUser) return;
-      const backoffMs = Math.min(30000, 1000 * Math.pow(2, retryCount));
+      const base = Math.min(30000, 1000 * Math.pow(2, retryCount));
+      const jitter = Math.floor(base * (Math.random() * 0.3));
+      const backoffMs = base + jitter;
       retryCount += 1;
-      console.warn(`[AgentVerse WS] Disconnected. Retrying in ${backoffMs}ms`);
       onStatus?.(`Realtime disconnected, retry in ${Math.round(backoffMs / 1000)}s`);
+      onWsState?.("RETRYING", { url, closeCode: ev.code, closeReason: ev.reason, error: lastError });
       setTimeout(connect, backoffMs);
     };
   };
@@ -61,10 +76,12 @@ export function connectWorld(wsUrl: string, wsToken: string, onMessage: OnMessag
       else queue.push(msg);
     },
     reconnect: () => {
-      console.log("[AgentVerse WS] Manual reconnect requested");
-      if (ws && ws.readyState === WebSocket.OPEN) ws.close();
       retryCount = 0;
+      if (ws && ws.readyState === WebSocket.OPEN) ws.close();
       connect();
+    },
+    setToken: (token: string) => {
+      wsToken = token;
     },
     close: () => {
       closedByUser = true;
