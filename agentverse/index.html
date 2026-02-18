@@ -1,13 +1,205 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AGENTVERSE</title>
-    <style>html,body,#app{margin:0;height:100%;background:#000;color:#fff;font-family:Inter,sans-serif}</style>
-  </head>
-  <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.ts"></script>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AGENTVERSE</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #000; color: #fff; font-family: Inter, system-ui, sans-serif; }
+    #app { position: fixed; inset: 0; }
+    .hud { position: fixed; top: 12px; left: 12px; z-index: 10; background: rgba(0,0,0,.6); border: 1px solid #333; border-radius: 8px; padding: 12px; max-width: 380px; }
+    .title { font-weight: 700; letter-spacing: .08em; }
+    .status { margin-top: 8px; font-size: 12px; color: #bbb; }
+    .button { margin-top: 10px; padding: 8px 12px; background: #fff; color: #000; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; }
+    .sub { margin-top: 10px; font-size: 12px; color: #bbb; }
+    .agents { margin: 6px 0 0; padding-left: 18px; max-height: 120px; overflow: auto; }
+    .crosshair { position: fixed; left: 50%; top: 50%; width: 10px; height: 10px; transform: translate(-50%, -50%); border: 1px solid rgba(255,255,255,.4); border-radius: 99px; pointer-events: none; }
+    a { color: #c084fc; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <div class="hud">
+    <div class="title">AGENTVERSE MVP</div>
+    <div id="status" class="status">Status: disconnected</div>
+    <button id="connect" class="button">Connect Wallet</button>
+    <div class="sub">WASD: move · Mouse: look · Shift: sprint</div>
+    <div class="sub">Skill: <a href="/agentverse/skill.md">/agentverse/skill.md</a></div>
+    <div class="sub">Online entities</div>
+    <ul id="agents" class="agents"></ul>
+  </div>
+  <div class="crosshair"></div>
+
+  <script type="module">
+    import * as THREE from 'https://unpkg.com/three@0.161.0/build/three.module.js';
+    import { BrowserProvider } from 'https://esm.sh/ethers@6.13.2';
+    import { SiweMessage } from 'https://esm.sh/siwe@2.3.2';
+
+    const API_BASE = '/agentverse-api';
+    const WS_URL = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/agentverse-ws`;
+    const CHAIN_ID = 8453;
+    const DOMAIN = 'lilagent.xyz';
+
+    const statusEl = document.getElementById('status');
+    const agentsEl = document.getElementById('agents');
+    const connectBtn = document.getElementById('connect');
+    const app = document.getElementById('app');
+
+    function setStatus(text) { statusEl.textContent = `Status: ${text}`; }
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x030306);
+    const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 1200);
+    camera.position.set(0, 1.7, 5);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(innerWidth, innerHeight);
+    app.appendChild(renderer.domElement);
+
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x222244, 1));
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(300, 300), new THREE.MeshStandardMaterial({ color: 0x101020 }));
+    floor.rotation.x = -Math.PI / 2;
+    scene.add(floor);
+    scene.add(new THREE.GridHelper(300, 120, 0x7e22ce, 0x1e1b4b));
+
+    const entities = new Map();
+    function upsertEntity(id, x, y, z, color = 0xa855f7) {
+      let mesh = entities.get(id);
+      if (!mesh) {
+        mesh = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.2, 0.6), new THREE.MeshStandardMaterial({ color }));
+        entities.set(id, mesh);
+        scene.add(mesh);
+        const li = document.createElement('li');
+        li.id = `agent-${id}`;
+        li.textContent = id;
+        agentsEl.appendChild(li);
+      }
+      mesh.position.set(x, y, z);
+    }
+
+    const keys = {};
+    let yaw = 0;
+    let pitch = 0;
+    let pointerLocked = false;
+
+    addEventListener('keydown', (e) => keys[e.code] = true);
+    addEventListener('keyup', (e) => keys[e.code] = false);
+    renderer.domElement.addEventListener('click', () => {
+      if (!pointerLocked) renderer.domElement.requestPointerLock();
+    });
+    document.addEventListener('pointerlockchange', () => {
+      pointerLocked = document.pointerLockElement === renderer.domElement;
+    });
+    document.addEventListener('mousemove', (e) => {
+      if (!pointerLocked) return;
+      yaw -= e.movementX * 0.0022;
+      pitch -= e.movementY * 0.0022;
+      pitch = Math.max(-1.2, Math.min(1.2, pitch));
+    });
+
+    const clock = new THREE.Clock();
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = clock.getDelta();
+
+      camera.rotation.order = 'YXZ';
+      camera.rotation.y = yaw;
+      camera.rotation.x = pitch;
+
+      const sprint = keys.ShiftLeft ? 1.8 : 1;
+      const speed = 5.2 * sprint;
+      const move = new THREE.Vector3();
+      if (keys.KeyW) move.z -= 1;
+      if (keys.KeyS) move.z += 1;
+      if (keys.KeyA) move.x -= 1;
+      if (keys.KeyD) move.x += 1;
+      move.normalize();
+
+      const forward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).setY(0).normalize();
+      const right = new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion).setY(0).normalize();
+      camera.position.addScaledVector(forward, move.z * speed * dt);
+      camera.position.addScaledVector(right, move.x * speed * dt);
+      camera.position.y = 1.7;
+
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    addEventListener('resize', () => {
+      camera.aspect = innerWidth / innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(innerWidth, innerHeight);
+    });
+
+    async function requestNonce(address) {
+      const r = await fetch(`${API_BASE}/wallet/siwe/nonce`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address, chainId: CHAIN_ID })
+      });
+      if (!r.ok) throw new Error('Nonce request failed');
+      return r.json();
+    }
+
+    async function verifySiwe(message, signature) {
+      const r = await fetch(`${API_BASE}/wallet/siwe/verify`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message, signature })
+      });
+      if (!r.ok) throw new Error('SIWE verification failed');
+      return r.json();
+    }
+
+    function connectWs(wsToken) {
+      const ws = new WebSocket(WS_URL);
+      ws.onopen = () => {
+        ws.send(JSON.stringify({ type: 'hello', wsToken }));
+        setStatus('websocket connected');
+      };
+      ws.onmessage = (ev) => {
+        const msg = JSON.parse(ev.data);
+        if (msg.type === 'presence' && msg.userId) {
+          upsertEntity(msg.userId, msg.x ?? 0, msg.y ?? 1.6, msg.z ?? 0, 0x22d3ee);
+        }
+      };
+      ws.onclose = () => setStatus('websocket disconnected');
+
+      setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'heartbeat', ts: Date.now() }));
+          ws.send(JSON.stringify({ type: 'presence', worldId: 'lobby', x: camera.position.x, y: camera.position.y, z: camera.position.z }));
+        }
+      }, 3000);
+    }
+
+    connectBtn.onclick = async () => {
+      try {
+        setStatus('connecting wallet');
+        if (!window.ethereum) throw new Error('No wallet provider found');
+        const provider = new BrowserProvider(window.ethereum);
+        const signer = await provider.getSigner();
+        const address = await signer.getAddress();
+
+        const nonceData = await requestNonce(address);
+        const siwe = new SiweMessage({
+          domain: DOMAIN,
+          address,
+          statement: 'Sign in to AGENTVERSE.',
+          uri: nonceData.uri,
+          version: '1',
+          chainId: CHAIN_ID,
+          nonce: nonceData.nonce
+        });
+        const message = siwe.prepareMessage();
+        const signature = await signer.signMessage(message);
+        const auth = await verifySiwe(message, signature);
+
+        setStatus('authenticated');
+        connectWs(auth.wsToken);
+        upsertEntity('you', 0, 1.6, 0, 0xa855f7);
+      } catch (err) {
+        setStatus(err.message || 'error');
+      }
+    };
+  </script>
+</body>
 </html>
