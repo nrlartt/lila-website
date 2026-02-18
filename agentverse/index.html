@@ -42,10 +42,7 @@
     <div class="sub">Onboarding Skill: <a href="/skill.md">/skill.md</a></div>
 
     <div class="grid">
-      <div class="card"><div class="label">Environment</div><div class="value">Trees, Houses, Nature, Citizens</div></div>
       <div class="card"><div class="label">Active Agents</div><div id="agentCount" class="value">0</div></div>
-      <div class="card"><div class="label">World</div><div class="value">lobby</div></div>
-      <div class="card"><div class="label">Presence</div><div id="presenceState" class="value">idle</div></div>
     </div>
 
     <div class="sub" style="margin-top:10px;">Online entities</div>
@@ -69,11 +66,9 @@
     const connectBtn = document.getElementById('connect');
     const agentsEl = document.getElementById('agents');
     const agentCountEl = document.getElementById('agentCount');
-    const presenceStateEl = document.getElementById('presenceState');
     const app = document.getElementById('app');
 
     function setStatus(text) { statusEl.textContent = `Status: ${text}`; }
-    function setPresenceState(text) { presenceStateEl.textContent = text; }
 
     // Scene bootstrap
     const scene = new THREE.Scene();
@@ -257,13 +252,22 @@
     });
 
     // Network helpers
+    async function parseErrorResponse(r, fallback) {
+      let details = fallback;
+      try {
+        const data = await r.json();
+        if (data?.error) details = data.error;
+      } catch {}
+      return `${fallback}: ${details}`;
+    }
+
     async function requestNonce(address) {
       const r = await fetch(`${API_BASE}/wallet/siwe/nonce`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ address, chainId: CHAIN_ID })
       });
-      if (!r.ok) throw new Error('Nonce request failed');
+      if (!r.ok) throw new Error(await parseErrorResponse(r, 'Nonce request failed'));
       return r.json();
     }
 
@@ -273,7 +277,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message, signature })
       });
-      if (!r.ok) throw new Error('SIWE verification failed');
+      if (!r.ok) throw new Error(await parseErrorResponse(r, 'SIWE verification failed'));
       return r.json();
     }
 
@@ -285,7 +289,6 @@
       ws.onopen = () => {
         ws.send(JSON.stringify({ type: 'hello', wsToken }));
         setStatus('websocket connected');
-        setPresenceState('streaming');
       };
       ws.onmessage = (ev) => {
         try {
@@ -297,7 +300,6 @@
       };
       ws.onclose = () => {
         setStatus('websocket disconnected');
-        setPresenceState('offline');
       };
 
       if (presenceTimer) clearInterval(presenceTimer);
@@ -321,6 +323,17 @@
         if (!window.ethereum) throw new Error('No wallet provider found');
 
         const provider = new BrowserProvider(window.ethereum);
+
+        const currentNetwork = await provider.getNetwork();
+        if (Number(currentNetwork.chainId) !== CHAIN_ID) {
+          const hexChainId = `0x${CHAIN_ID.toString(16)}`;
+          try {
+            await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: hexChainId }] });
+          } catch (switchErr) {
+            throw new Error('Please switch your wallet network to Base (chainId 8453) and try again');
+          }
+        }
+
         const signer = await provider.getSigner();
         const address = await signer.getAddress();
 
