@@ -61,8 +61,8 @@
     const CHAIN_ID = 8453;
     const DOMAIN = 'lilagent.xyz';
     const WORLD_ID = 'lobby';
-    const PRIVY_APP_ID = window.__PRIVY_APP_ID__ || localStorage.getItem('PRIVY_APP_ID') || 'cmhuq6qqv00dfi60b72eee6bn';
-    const PRIVY_CLIENT_ID = window.__PRIVY_CLIENT_ID__ || localStorage.getItem('PRIVY_CLIENT_ID') || PRIVY_APP_ID;
+    const PRIVY_APP_ID = window.__PRIVY_APP_ID__ || localStorage.getItem('PRIVY_APP_ID') || '';
+    const PRIVY_CLIENT_ID = window.__PRIVY_CLIENT_ID__ || localStorage.getItem('PRIVY_CLIENT_ID') || 'cmhuq6qqv00dfi60b72eee6bn';
 
     const statusEl = document.getElementById('status');
     const connectBtn = document.getElementById('connect');
@@ -295,8 +295,8 @@
     }
 
     async function connectWithPrivy() {
-      if (!PRIVY_APP_ID || PRIVY_APP_ID.startsWith('REPLACE_')) {
-        throw new Error('Privy is not configured. Set window.__PRIVY_APP_ID__ (or localStorage.PRIVY_APP_ID)');
+      if (!PRIVY_CLIENT_ID || PRIVY_CLIENT_ID.startsWith('REPLACE_')) {
+        throw new Error('Privy is not configured. Set window.__PRIVY_CLIENT_ID__ (or localStorage.PRIVY_CLIENT_ID)');
       }
       if (!window.ethereum) {
         throw new Error('No injected wallet found for Privy SIWE flow');
@@ -312,11 +312,15 @@
       const signer = await provider.getSigner();
       const address = await signer.getAddress();
 
-      const privy = new Privy({
-        appId: PRIVY_APP_ID,
+      const privyConfig = {
         clientId: PRIVY_CLIENT_ID,
         storage: new PrivyLocalStorage()
-      });
+      };
+      if (PRIVY_APP_ID && PRIVY_APP_ID !== PRIVY_CLIENT_ID) {
+        privyConfig.appId = PRIVY_APP_ID;
+      }
+
+      const privy = new Privy(privyConfig);
       await privy.initialize();
 
       const wallet = {
@@ -357,7 +361,6 @@
         try {
           result = await connectWithPrivy();
         } catch (privyErr) {
-          console.warn('Privy flow failed, falling back to injected wallet:', privyErr);
           setStatus('Privy unavailable, using injected wallet fallback');
           result = await connectWithInjectedFallback();
         }
