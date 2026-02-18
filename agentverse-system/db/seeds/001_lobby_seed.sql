@@ -11,6 +11,11 @@ VALUES
   ('npc_beta', 'BETA', 'active', 'lobby'),
   ('npc_gamma', 'GAMMA', 'active', 'lobby'),
   ('npc_delta', 'DELTA', 'active', 'lobby'),
-  ('npc_sigma', 'SIGMA', 'active', 'lobby')
+  ('npc_sigma', 'SIGMA', 'active', 'lobby'),
+  ('npc_omega', 'OMEGA', 'active', 'lobby'),
+  ('npc_lambda', 'LAMBDA', 'active', 'lobby'),
+  ('npc_rho', 'RHO', 'active', 'lobby'),
+  ('npc_tau', 'TAU', 'active', 'lobby'),
+  ('npc_zeta', 'ZETA', 'active', 'lobby')
 ON CONFLICT (external_agent_id)
 DO UPDATE SET status='active', world_id='lobby', updated_at=NOW();

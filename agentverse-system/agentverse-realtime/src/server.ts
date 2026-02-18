@@ -53,7 +53,10 @@ const wss = new WebSocketServer({ noServer: true, maxPayload: maxBytes });
 const clients = new Set<ClientSocket>();
 const brain = new AgentBrainEngine();
 
-const seedAgents = ["npc_alpha", "npc_beta", "npc_gamma", "npc_delta", "npc_sigma"];
+const seedAgents = [
+  "npc_alpha", "npc_beta", "npc_gamma", "npc_delta", "npc_sigma",
+  "npc_omega", "npc_lambda", "npc_rho", "npc_tau", "npc_zeta"
+];
 for (const id of seedAgents) {
   brain.upsertAgent({ id, worldId: "lobby", displayName: id.replace("npc_", "").toUpperCase() });
 }

@@ -19,7 +19,7 @@ let pointerLockEnabled = true;
 const worldContainer = document.createElement("div");
 app.appendChild(worldContainer);
 const world = startWorld(worldContainer, { pointerLockEnabled: () => pointerLockEnabled });
-ui.setLoadProgress(75);
+ui.setLoadProgress(70);
 
 const chainId = Number(import.meta.env.VITE_CHAIN_ID || 8453);
 const domain = import.meta.env.VITE_DOMAIN || "lilagent.xyz";
@@ -29,11 +29,50 @@ const apiBase = (window as any).__API_BASE__ || (import.meta.env.VITE_API_BASE ?
 let accessToken = "";
 let wsToken = "";
 let worldSocket: ReturnType<typeof connectWorld> | null = null;
+let offlineMode = false;
+let offlineTick: number | null = null;
+
+const offlineAgents = Array.from({ length: 10 }).map((_, i) => ({
+  id: `offline_${i + 1}`,
+  name: `LOCAL-${i + 1}`,
+  angle: Math.random() * Math.PI * 2,
+  radius: 8 + Math.random() * 24,
+  cx: -8 + Math.random() * 16,
+  cz: -32 + Math.random() * 16
+}));
+
+function startOfflineSandbox() {
+  if (offlineTick) return;
+  offlineMode = true;
+  ui.setOfflineMode(true);
+  ui.setStatus("Offline sandbox mode");
+  offlineTick = window.setInterval(() => {
+    for (const a of offlineAgents) {
+      a.angle += 0.015 + Math.random() * 0.01;
+      const x = a.cx + Math.cos(a.angle) * a.radius;
+      const z = a.cz + Math.sin(a.angle) * a.radius;
+      world.upsertAgent(a.id, x, 1.6, z, { name: a.name, state: "wandering", lastSeen: new Date().toLocaleTimeString() });
+      ui.upsertAgent({ id: a.id, name: a.name, state: "wandering", lastSeen: new Date().toLocaleTimeString() });
+    }
+  }, 250);
+}
+
+function stopOfflineSandbox() {
+  offlineMode = false;
+  ui.setOfflineMode(false);
+  if (offlineTick) {
+    clearInterval(offlineTick);
+    offlineTick = null;
+  }
+}
 
 async function ensureGuestWsToken() {
   if (wsToken) return wsToken;
-  const r = await fetch(`${apiBase}/realtime/guest-token`);
-  if (!r.ok) throw new Error(`Guest token failed (${r.status})`);
+  const endpoint = `${apiBase}/realtime/guest-token`;
+  const r = await fetch(endpoint);
+  if (!r.ok) {
+    throw new Error(`Guest token request failed at ${endpoint} (HTTP ${r.status})`);
+  }
   const data = await r.json();
   wsToken = data.wsToken;
   return wsToken;
@@ -47,9 +86,17 @@ async function ensureRealtimeConnection() {
     wsToken,
     (m) => {
       if (m.type === "agent_state_update" && m.id) {
+        stopOfflineSandbox();
         const lastSeen = new Date().toLocaleTimeString();
         ui.upsertAgent({ id: m.id, name: m.displayName, state: m.state, taskId: m.taskId, statusText: m.statusText, lastSeen });
         world.upsertAgent(m.id, m.x ?? 0, m.y ?? 1.6, m.z ?? 0, { name: m.displayName, state: m.state, taskId: m.taskId, lastSeen });
+      }
+      if (m.type === "world_snapshot" && Array.isArray(m.agents)) {
+        stopOfflineSandbox();
+        for (const a of m.agents) {
+          ui.upsertAgent({ id: a.id, name: a.displayName, state: a.state, lastSeen: new Date().toLocaleTimeString() });
+          world.upsertAgent(a.id, a.x ?? 0, a.y ?? 1.6, a.z ?? 0, { name: a.displayName, state: a.state });
+        }
       }
       if (m.type === "conversation_event" || (m.type === "chat" && m.message)) {
         ui.appendAgentChat(m.from || m.userId || "agent", m.message || "...");
@@ -62,42 +109,68 @@ async function ensureRealtimeConnection() {
       }
     },
     (status) => ui.setStatus(status),
-    (state, detail) => ui.setWsState(state, detail)
+    (state, detail) => {
+      ui.setWsState(state, detail);
+      if (state === "CONNECTED") stopOfflineSandbox();
+      if (state === "DISCONNECTED" || state === "RETRYING") startOfflineSandbox();
+    }
   );
   worldSocket.send({ type: "event", worldId: "lobby", name: "snapshot_request", payload: {} });
 }
 
 ui.onReconnect(async () => {
   if (!worldSocket) {
-    await ensureRealtimeConnection();
+    await ensureRealtimeConnection().catch((err) => {
+      ui.setStatus(err.message);
+      startOfflineSandbox();
+    });
     return;
   }
   worldSocket.reconnect();
 });
 
-ui.onPlayClick(() => {
+const tryEnterWorld = () => {
   if (pointerLockEnabled) world.tryLockPointer();
-});
+};
+ui.onPlayClick(tryEnterWorld);
+ui.onEnterWorld(tryEnterWorld);
 
 ui.onPointerLockToggle((enabled) => {
   pointerLockEnabled = enabled;
   world.setPointerLookEnabled(enabled);
 });
+ui.onAudioToggle((enabled) => world.setAmbientAudioEnabled(enabled));
 
 world.onPointerLockChange((locked) => {
   ui.setOverlayVisible(shouldShowPlayOverlay(locked, pointerLockEnabled));
 });
 
+// optional canvas click-to-enter only when click is not on UI
+world.canvas.addEventListener("mousedown", (ev: MouseEvent) => {
+  const target = ev.target as HTMLElement;
+  const isUi = !!target.closest("#interactionPanel") || !!target.closest("#playOverlay") || !!target.closest("button") || !!target.closest("label") || !!target.closest("input") || !!target.closest("select");
+  if (!isUi && pointerLockEnabled && !world.isPointerLocked()) {
+    world.tryLockPointer();
+  }
+});
+
 world.onSelectionChanged((agent) => {
   ui.openAgent(agent.id);
   ui.appendAgentChat("system", `Selected ${agent.name} (${agent.status})`);
-  worldSocket?.send({
-    type: "interaction",
-    worldId: "lobby",
-    targetAgentId: agent.id,
-    action: "profile_request",
-    payload: {}
-  });
+  if (offlineMode) {
+    ui.renderProfile({
+      personality: "Local stub agent in offline sandbox.",
+      memories: [{ at: Date.now(), type: "observation", content: "Realtime unavailable, running local simulation." }]
+    });
+  } else {
+    worldSocket?.send({
+      type: "interaction",
+      worldId: "lobby",
+      targetAgentId: agent.id,
+      action: "profile_request",
+      payload: {}
+    });
+  }
 });
 world.onHeadingChange((h) => ui.setCompass(h));
 
@@ -122,8 +195,16 @@ ui.onLogin(async () => {
 });
 
 ui.onChatSend((agentId, text) => {
+  if (offlineMode) {
+    const response = text.toLowerCase().includes("portal")
+      ? "Offline agent: Portal Gate is west of the plaza road."
+      : text.toLowerCase().includes("patrol")
+      ? "Offline agent: Starting plaza patrol now."
+      : "Offline agent: Request acknowledged in local sandbox.";
+    setTimeout(() => ui.appendAgentChat(agentId, response), 250);
+    return;
+  }
   worldSocket?.send({ type: "interaction", worldId: "lobby", targetAgentId: agentId, action: "chat", payload: { text } });
-  worldSocket?.send({ type: "chat", worldId: "lobby", message: text });
 });
 
 ui.onAssignTask(async (agentId, title) => {
@@ -139,7 +220,11 @@ ui.onAssignTask(async (agentId, title) => {
       location: { worldId: "lobby", ...pos },
       requiredCapabilities: ["navigation", "interaction"]
     });
-    worldSocket?.send({ type: "task_assign", worldId: "lobby", agentId, taskId: task.task.id });
+    if (offlineMode) {
+      ui.appendAgentChat("task", `Offline mode queued task: ${title}`);
+    } else {
+      worldSocket?.send({ type: "task_assign", worldId: "lobby", agentId, taskId: task.task.id });
+    }
     const memories = await getAgentMemories(accessToken, agentId).catch(() => ({ memories: [] }));
     ui.appendAgentChat("system", `Task assigned: ${title}. Memory entries: ${memories.memories?.length || 0}`);
   } catch (err: any) {
@@ -147,8 +232,10 @@ ui.onAssignTask(async (agentId, title) => {
   }
 });
 
-// Start realtime even as guest for world visibility.
-ensureRealtimeConnection().catch((err) => ui.setStatus(err.message || "Realtime bootstrap failed"));
+ensureRealtimeConnection().catch((err) => {
+  ui.setStatus(err.message || "Realtime bootstrap failed");
+  startOfflineSandbox();
+});
 
 setInterval(() => {
   if (!worldSocket) return;

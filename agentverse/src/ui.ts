@@ -3,11 +3,11 @@ type AgentRecord = { id: string; name?: string; state?: string; taskId?: string;
 export function createUI(root: HTMLElement) {
   root.insertAdjacentHTML(
     "beforeend",
-    `<div id="playOverlay" style="position:fixed;inset:0;z-index:30;background:rgba(2,6,23,.75);display:flex;align-items:center;justify-content:center;pointer-events:auto;">
-      <button id="playBtn" style="padding:14px 20px;border:1px solid #334155;border-radius:10px;background:#0f172a;color:#e2e8f0;font-weight:700;cursor:pointer">Click to Play</button>
+    `<div id="playOverlay" style="position:fixed;inset:0;z-index:25;background:rgba(2,6,23,.45);display:flex;align-items:center;justify-content:center;pointer-events:none;">
+      <button id="playBtn" style="pointer-events:auto;padding:14px 20px;border:1px solid #334155;border-radius:10px;background:#0f172a;color:#e2e8f0;font-weight:700;cursor:pointer">Enter World (Pointer Lock)</button>
     </div>
 
-    <div style="position:fixed;top:12px;left:12px;z-index:20;background:rgba(8,10,20,.86);padding:12px;border:1px solid #334155;border-radius:10px;max-width:360px;color:#e2e8f0;font-family:Inter,system-ui,sans-serif;pointer-events:auto">
+    <div style="position:fixed;top:12px;left:12px;z-index:40;background:rgba(8,10,20,.86);padding:12px;border:1px solid #334155;border-radius:10px;max-width:380px;color:#e2e8f0;font-family:Inter,system-ui,sans-serif;pointer-events:auto">
       <div style="font-weight:700;letter-spacing:.08em">AGENTVERSE</div>
       <div id="status" style="margin-top:8px;font-size:12px;color:#94a3b8">Status: booting</div>
       <div id="wsBadge" style="margin-top:4px;font-size:12px;color:#facc15">WS: CONNECTING</div>
@@ -17,10 +17,16 @@ export function createUI(root: HTMLElement) {
       <div id="load" style="margin-top:4px;font-size:12px;color:#93c5fd">Loading: 0%</div>
       <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
         <button id="login" style="padding:8px 12px;background:#fff;color:#000;border:none;border-radius:6px;cursor:pointer">Connect Wallet</button>
+        <button id="enterWorld" style="padding:8px 12px;background:#0ea5e9;color:#fff;border:none;border-radius:6px;cursor:pointer">Enter World</button>
         <button id="reconnect" style="padding:8px 12px;background:#1d4ed8;color:#fff;border:none;border-radius:6px;cursor:pointer">Reconnect</button>
       </div>
+      <div id="authHint" style="margin-top:8px;font-size:12px;color:#a7f3d0">Wallet required for ownership actions. You can explore as Guest.</div>
+      <div id="offlineBanner" style="display:none;margin-top:8px;font-size:12px;color:#fde68a">Offline Mode — realtime unavailable</div>
       <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;color:#cbd5e1">
         <input id="mouseLookToggle" type="checkbox" checked /> FPS Mouse Look (Pointer Lock)
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12px;color:#cbd5e1">
+        <input id="audioToggle" type="checkbox" /> Ambient Audio
       </label>
       <div style="margin-top:10px;font-size:12px">Active Agents</div>
       <ul id="agents" style="max-height:130px;overflow:auto;padding-left:18px"></ul>
@@ -58,8 +64,8 @@ export function createUI(root: HTMLElement) {
       </div>
     </div>
 
-    <div style="position:fixed;left:50%;bottom:10px;transform:translateX(-50%);z-index:15;background:rgba(8,10,20,.72);border:1px solid #334155;border-radius:999px;padding:6px 10px;color:#e2e8f0;font-size:12px;font-family:Inter,system-ui,sans-serif;pointer-events:none">
-      [W/A/S/D] Move • [Shift] Sprint • [E] Interact • [Esc] Exit mouse lock
+    <div style="position:fixed;left:50%;bottom:10px;transform:translateX(-50%);z-index:35;background:rgba(8,10,20,.72);border:1px solid #334155;border-radius:999px;padding:6px 10px;color:#e2e8f0;font-size:12px;font-family:Inter,system-ui,sans-serif;pointer-events:none">
+      [W/A/S/D] Move • [Shift] Sprint • [E] Interact • [Esc] Release mouse
     </div>`
   );
 
@@ -111,11 +117,21 @@ export function createUI(root: HTMLElement) {
     onLogin: (cb: () => void) => ((document.getElementById("login") as HTMLButtonElement).onclick = cb),
     onReconnect: (cb: () => void) => ((document.getElementById("reconnect") as HTMLButtonElement).onclick = cb),
     onPlayClick: (cb: () => void) => ((document.getElementById("playBtn") as HTMLButtonElement).onclick = cb),
+    onEnterWorld: (cb: () => void) => ((document.getElementById("enterWorld") as HTMLButtonElement).onclick = cb),
+    onAudioToggle: (cb: (enabled: boolean) => void) => {
+      const el = document.getElementById("audioToggle") as HTMLInputElement;
+      el.onchange = () => cb(el.checked);
+    },
     onPointerLockToggle: (cb: (enabled: boolean) => void) => {
       const el = document.getElementById("mouseLookToggle") as HTMLInputElement;
       el.onchange = () => cb(el.checked);
     },
-    setOverlayVisible: (visible: boolean) => ((document.getElementById("playOverlay") as HTMLElement).style.display = visible ? "flex" : "none"),
+    setOverlayVisible: (visible: boolean) => {
+      const el = document.getElementById("playOverlay") as HTMLElement;
+      el.style.display = visible ? "flex" : "none";
+      el.style.pointerEvents = visible ? "auto" : "none";
+    },
+    setOfflineMode: (enabled: boolean) => ((document.getElementById("offlineBanner") as HTMLElement).style.display = enabled ? "block" : "none"),
     upsertAgent: (record: AgentRecord) => {
       agentMap.set(record.id, { ...(agentMap.get(record.id) || {}), ...record });
       redraw();

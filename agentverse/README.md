@@ -2,65 +2,79 @@
 
 ## Controls
 
-- **Click to Play**: Activates FPS mouse look (Pointer Lock)
-- **W / A / S / D**: Move
-- **Shift**: Sprint
-- **E**: Context interaction
-- **Esc**: Exit pointer lock and show the play overlay again
-- **Settings**: "FPS Mouse Look (Pointer Lock)" toggle is enabled by default
+- **Enter World** or **Enter World (Pointer Lock)**: activates FPS mouse look.
+- **W / A / S / D**: move.
+- **Shift**: sprint.
+- **E**: context interaction.
+- **Esc**: release mouse and return to UI mode.
+- **Ambient Audio**: optional low-volume atmosphere.
 
-## Troubleshooting
+## Wallet Flow
 
-- If the screen looks static, press **Click to Play** first.
-- If mouse look does not work, confirm browser allows pointer lock on the page.
-- If realtime status shows disconnect, use the **Reconnect** button.
-- Wallet is optional for world entry, but required for ownership actions like task assignment.
+- You can explore as **Guest** without wallet.
+- Wallet connection (EVM + SIWE) is required for ownership actions (task assignment and protected actions).
+- Guest realtime token endpoint: `GET /agentverse-api/realtime/guest-token`.
+
+## Offline Mode Behavior
+
+- If realtime is unavailable, AgentVerse switches to **Offline Sandbox Mode**.
+- A banner appears: `Offline Mode — realtime unavailable`.
+- Local agents remain visible and interactive.
+- Local stub brain handles chat responses and basic task acknowledgements.
+- When realtime reconnects, server entities replace sandbox flow automatically.
+
+## World Generation Module
+
+The world is generated procedurally with four connected zones:
+
+1. **Town Center**
+   - plaza, statue, portal gate, billboard, kiosk, fountain.
+2. **Residential Area**
+   - clustered houses, yards, street lamps.
+3. **Forest Edge**
+   - instanced trees, rocks, pond, bridge.
+4. **Research District**
+   - lab structures, signs, terminals, arch landmark.
+
+### Generation strategy
+
+- Terrain uses a lightweight height function (small hills, no heavy assets).
+- Roads are geometry-based strips across zones.
+- Repeated assets use **InstancedMesh** for performance.
+- Landmark labels are projected in screen space.
 
 ## Realtime Debugging Guide
 
 ### Common close codes
 
-- `1000`: Normal close.
-- `1006`: Abnormal close (network/proxy interruption).
-- `4401`: Authentication issue (token invalid/expired).
-- `4408`: Realtime rate limit exceeded.
+- `1000`: normal close.
+- `1006`: abnormal close (network/proxy interruption).
+- `4401`: token invalid or expired.
+- `4408`: realtime rate limit exceeded.
 
 ### Verify WS URL
 
-1. Confirm UI shows the exact WS URL in the status card.
-2. Open browser console and verify `[AgentVerse WS] Connecting` log target.
-3. If behind HTTPS, ensure URL uses `wss://`.
+1. Check WS URL shown in the HUD status area.
+2. Confirm console logs: `[AgentVerse WS] Connecting ...`.
+3. On HTTPS pages, URL must be `wss://...`.
+
+### Why guest-token might return 404
+
+1. API route not mounted: verify `/realtime/guest-token` is registered in API app.
+2. Reverse proxy missing `/agentverse-api` forwarding.
+3. Wrong API base in frontend (`VITE_API_BASE` / `window.__API_BASE__`).
+4. API container not restarted after route changes.
 
 ### Reverse proxy checklist
 
-1. Proxy must forward `Upgrade` and `Connection: upgrade` headers.
-2. Proxy timeout must allow long-lived websocket connections.
-3. Route `/agentverse-ws` must point to realtime service port.
+1. Forward `/agentverse-api/*` to API service.
+2. Forward `/agentverse-ws` with websocket upgrade headers.
+3. Ensure idle timeout supports long-lived websocket sessions.
 
-### CORS / origin notes
+### Smoke test
 
-- Browser WebSockets do not use classic CORS preflight, but upstream gateway/firewall may enforce origin allowlists.
-- If connections fail only in browser and not with smoke test, verify origin filtering rules.
-
-## Debug Checklist
-
-### Pointer lock not activating
-1. Open the page directly (`https://lilagent.xyz/agentverse/`).
-2. Click the game canvas area and the **Click to Play** button.
-3. Ensure no browser extension blocks pointer lock.
-4. Confirm `FPS Mouse Look (Pointer Lock)` is enabled.
-
-### WebSocket disconnect reasons
-1. Check browser console for `[AgentVerse WS]` logs.
-2. Verify WS URL path is `/agentverse-ws` and visible in UI.
-3. Inspect close code/reason and last error shown in UI.
-4. Use the **Reconnect** button to force a fresh attempt.
-5. Run smoke test from `agentverse-system`:
-   - `node scripts/ws_smoke_test.js`
-   - Optional: `AGENTVERSE_WS_URL=wss://lilagent.xyz/agentverse-ws AGENTVERSE_WS_TOKEN=<token> node scripts/ws_smoke_test.js`
-
-### Nonce request failure
-1. Attempt wallet connect and inspect status text.
-2. Verify endpoint and HTTP code in error message.
-3. Confirm `/agentverse-api/wallet/siwe/nonce` is reachable.
-4. Verify chain ID is `8453` when using Base.
+```bash
+node agentverse-system/scripts/ws_smoke_test.js
+# optional explicit target
+AGENTVERSE_WS_URL=wss://lilagent.xyz/agentverse-ws AGENTVERSE_WS_TOKEN=<token> node agentverse-system/scripts/ws_smoke_test.js
+```
