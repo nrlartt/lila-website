@@ -1,7 +1,7 @@
 type AgentRecord = { id: string; name?: string; state?: string; taskId?: string; statusText?: string };
 
 export function createUI(root: HTMLElement) {
-  root.innerHTML = `
+  root.insertAdjacentHTML("beforeend", `
   <div style="position:fixed;top:12px;left:12px;z-index:50;background:rgba(8,10,20,.86);padding:12px;border:1px solid #334155;border-radius:10px;max-width:340px;color:#e2e8f0;font-family:Inter,system-ui,sans-serif">
     <div style="font-weight:700;letter-spacing:.08em">AGENTVERSE</div>
     <div id="status" style="margin-top:8px;font-size:12px;color:#94a3b8">Status: disconnected</div>
@@ -26,7 +26,7 @@ export function createUI(root: HTMLElement) {
 
   <div style="position:fixed;left:50%;bottom:10px;transform:translateX(-50%);z-index:40;background:rgba(8,10,20,.72);border:1px solid #334155;border-radius:999px;padding:6px 10px;color:#e2e8f0;font-size:12px;font-family:Inter,system-ui,sans-serif">
     [W/A/S/D] Move • [E] Interact
-  </div>`;
+  </div>`);
 
   const agentMap = new Map<string, AgentRecord>();
   let selectedAgentId: string | null = null;

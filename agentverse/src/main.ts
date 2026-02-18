@@ -4,7 +4,12 @@ import { signInWithEthereum } from "./wallet";
 import { connectWorld } from "./ws";
 import { createTask, getAgentMemories } from "./api";
 
-const app = document.getElementById("app")!;
+const app = document.getElementById("app") || (() => {
+  const mount = document.createElement("div");
+  mount.id = "app";
+  document.body.appendChild(mount);
+  return mount;
+})();
 const worldContainer = document.createElement("div");
 app.appendChild(worldContainer);
 const world = startWorld(worldContainer);
