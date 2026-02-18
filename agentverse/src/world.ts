@@ -2,13 +2,14 @@ import * as THREE from "three";
 import { PointerLockControls } from "three/examples/jsm/controls/PointerLockControls.js";
 import { createInputManager } from "./inputManager";
 
-type AgentMeta = { name?: string; state?: string; taskId?: string; lastSeen?: string };
+type AgentMeta = { name?: string; state?: string; taskId?: string; lastSeen?: string; path?: Array<{ x: number; z: number }> };
 
 type AgentRecord = {
   id: string;
   mesh: THREE.Mesh;
   label: HTMLDivElement;
-  meta: Required<Pick<AgentMeta, "name" | "state" | "lastSeen">> & Pick<AgentMeta, "taskId">;
+  pathLine?: THREE.Line;
+  meta: Required<Pick<AgentMeta, "name" | "state" | "lastSeen">> & Pick<AgentMeta, "taskId" | "path">;
 };
 
 export function startWorld(container: HTMLElement, options?: { pointerLockEnabled?: () => boolean }) {
@@ -87,6 +88,11 @@ export function startWorld(container: HTMLElement, options?: { pointerLockEnable
   addRoad(80, -20, 16, 180, roadMat, Math.PI / 2);
   addRoad(-90, -15, 14, 210, roadMat, Math.PI / 2);
 
+  const navmeshOverlay = new THREE.GridHelper(180, 45, 0x22c55e, 0x14532d);
+  navmeshOverlay.position.set(0, terrainHeight(0, 0) + 0.08, 0);
+  navmeshOverlay.visible = showNavmeshDebug;
+  scene.add(navmeshOverlay);
+
   // Zones
   const zones = [
     { name: "Town Center", x: 0, z: -30, color: 0x334155 },
@@ -94,6 +100,24 @@ export function startWorld(container: HTMLElement, options?: { pointerLockEnable
     { name: "Forest Edge", x: -110, z: 20, color: 0x14532d },
     { name: "Research District", x: 0, z: 110, color: 0x1f2937 }
   ];
+
+  type Collider = { minX: number; maxX: number; minZ: number; maxZ: number };
+  const staticColliders: Collider[] = [];
+  const debugColliders: THREE.LineSegments[] = [];
+  let showColliderDebug = false;
+  let showPathDebug = false;
+  let showNavmeshDebug = false;
+
+  const addCollider = (x: number, z: number, w: number, d: number) => {
+    staticColliders.push({ minX: x - w / 2, maxX: x + w / 2, minZ: z - d / 2, maxZ: z + d / 2 });
+
+    const geo = new THREE.EdgesGeometry(new THREE.BoxGeometry(w, 4, d));
+    const wire = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: 0xff0000 }));
+    wire.position.set(x, terrainHeight(x, z) + 2, z);
+    wire.visible = showColliderDebug;
+    scene.add(wire);
+    debugColliders.push(wire);
+  };
 
   const landmarks: THREE.Object3D[] = [];
   const addLandmarkLabel = (obj: THREE.Object3D, text: string) => {
@@ -114,6 +138,7 @@ export function startWorld(container: HTMLElement, options?: { pointerLockEnable
   const plaza = new THREE.Mesh(new THREE.CylinderGeometry(20, 20, 0.8, 48), new THREE.MeshStandardMaterial({ color: 0x475569 }));
   plaza.position.set(0, terrainHeight(0, -30) + 0.4, -30);
   scene.add(plaza); landmarks.push(plaza); addLandmarkLabel(plaza, "Town Center Plaza");
+  addCollider(0, -30, 10, 10);
 
   const statue = new THREE.Mesh(new THREE.CapsuleGeometry(1.5, 6, 8, 12), new THREE.MeshStandardMaterial({ color: 0x94a3b8 }));
   statue.position.set(0, terrainHeight(0, -30) + 4.5, -30);
@@ -207,6 +232,7 @@ export function startWorld(container: HTMLElement, options?: { pointerLockEnable
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     scene.add(mesh);
+    addCollider(x, z, w, d);
     return mesh;
   }
 
@@ -274,7 +300,7 @@ export function startWorld(container: HTMLElement, options?: { pointerLockEnable
       label.style.font = "11px Inter, sans-serif";
       labelLayer.appendChild(label);
 
-      rec = { id, mesh, label, meta: { name: id, state: "idle", lastSeen: new Date().toISOString() } };
+      rec = { id, mesh, label, meta: { name: id, state: "idle", lastSeen: new Date().toISOString(), path: [] } };
       agents.set(id, rec);
     }
     return rec;
@@ -288,7 +314,23 @@ export function startWorld(container: HTMLElement, options?: { pointerLockEnable
     rec.meta.state = meta?.state ?? rec.meta.state;
     rec.meta.lastSeen = meta?.lastSeen ?? new Date().toISOString();
     rec.meta.taskId = meta?.taskId;
+    rec.meta.path = meta?.path ?? rec.meta.path;
     rec.label.textContent = `${rec.meta.name} • ${rec.meta.state}`;
+
+    if (showPathDebug) {
+      const points = [new THREE.Vector3(rec.mesh.position.x, rec.mesh.position.y, rec.mesh.position.z), ...(rec.meta.path || []).map((p) => new THREE.Vector3(p.x, terrainHeight(p.x, p.z) + 1.1, p.z))];
+      const geom = new THREE.BufferGeometry().setFromPoints(points);
+      if (!rec.pathLine) {
+        rec.pathLine = new THREE.Line(geom, new THREE.LineBasicMaterial({ color: 0xf59e0b }));
+        scene.add(rec.pathLine);
+      } else {
+        rec.pathLine.geometry.dispose();
+        rec.pathLine.geometry = geom;
+      }
+      rec.pathLine.visible = true;
+    } else if (rec.pathLine) {
+      rec.pathLine.visible = false;
+    }
   }
 
   function setPointerLookEnabled(enabled: boolean) {
@@ -373,7 +415,13 @@ export function startWorld(container: HTMLElement, options?: { pointerLockEnable
         .addScaledVector(cameraRight, -moveDirection.x * targetSpeed);
 
       moveVelocity.lerp(desired, Math.min(1, dt * 12));
-      controls.getObject().position.addScaledVector(moveVelocity, dt);
+      const current = controls.getObject().position.clone();
+      const proposed = current.clone().addScaledVector(moveVelocity, dt);
+      const radius = 0.6;
+      const hit = staticColliders.some((c) => proposed.x > c.minX - radius && proposed.x < c.maxX + radius && proposed.z > c.minZ - radius && proposed.z < c.maxZ + radius);
+      if (!hit) {
+        controls.getObject().position.copy(proposed);
+      }
     }
 
     if (input.consumeInteract()) (window as any).__agentverseLastInteraction__ = "context_interaction";
@@ -436,6 +484,20 @@ export function startWorld(container: HTMLElement, options?: { pointerLockEnable
     tryLockPointer,
     setPointerLookEnabled,
     setAmbientAudioEnabled,
+    setDebugFlags: (flags: { colliders?: boolean; navmesh?: boolean; paths?: boolean }) => {
+      if (typeof flags.colliders === "boolean") {
+        showColliderDebug = flags.colliders;
+        debugColliders.forEach((w) => (w.visible = showColliderDebug));
+      }
+      if (typeof flags.navmesh === "boolean") {
+        showNavmeshDebug = flags.navmesh;
+        navmeshOverlay.visible = showNavmeshDebug;
+      }
+      if (typeof flags.paths === "boolean") {
+        showPathDebug = flags.paths;
+        for (const a of agents.values()) if (a.pathLine) a.pathLine.visible = showPathDebug;
+      }
+    },
     isPointerLocked: () => controls.isLocked,
     getCameraPosition: () => {
       const p2 = controls.getObject().position;

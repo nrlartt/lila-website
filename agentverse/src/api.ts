@@ -1,4 +1,5 @@
-const API_BASE = (window as any).__API_BASE__ || (import.meta.env.VITE_API_BASE ?? "/agentverse-api");
+const rawApiBase = (typeof window !== "undefined" && (window as any).__API_BASE__) || (import.meta.env.VITE_API_BASE ?? "/agentverse-api");
+const API_BASE = String(rawApiBase).startsWith("http") || String(rawApiBase).startsWith("/") ? String(rawApiBase) : `/${String(rawApiBase)}`;
 
 export async function getNonce(address: string, chainId: number) {
   const endpoint = `${API_BASE}/wallet/siwe/nonce`;

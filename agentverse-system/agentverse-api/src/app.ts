@@ -23,6 +23,8 @@ app.use("/tasks", taskRoutes);
 app.use("/memories", memoryRoutes);
 app.use("/admin", adminRoutes);
 app.use("/realtime", realtimeRoutes);
+// Compatibility alias
+app.use("/api/realtime", realtimeRoutes);
 
 app.listen(config.port, () => {
   console.log(JSON.stringify({ level: "info", msg: "agentverse-api started", port: config.port }));

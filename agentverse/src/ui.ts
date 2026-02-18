@@ -17,6 +17,7 @@ export function createUI(root: HTMLElement) {
       <div id="load" style="margin-top:4px;font-size:12px;color:#93c5fd">Loading: 0%</div>
       <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
         <button id="login" style="padding:8px 12px;background:#fff;color:#000;border:none;border-radius:6px;cursor:pointer">Connect Wallet</button>
+        <button id="walletConnect" style="padding:8px 12px;background:#7c3aed;color:#fff;border:none;border-radius:6px;cursor:pointer">WalletConnect</button>
         <button id="enterWorld" style="padding:8px 12px;background:#0ea5e9;color:#fff;border:none;border-radius:6px;cursor:pointer">Enter World</button>
         <button id="reconnect" style="padding:8px 12px;background:#1d4ed8;color:#fff;border:none;border-radius:6px;cursor:pointer">Reconnect</button>
       </div>
@@ -28,6 +29,17 @@ export function createUI(root: HTMLElement) {
       <label style="display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12px;color:#cbd5e1">
         <input id="audioToggle" type="checkbox" /> Ambient Audio
       </label>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:4px;font-size:12px;color:#cbd5e1">
+        <input id="dbgColliders" type="checkbox" /> Debug Colliders
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:4px;font-size:12px;color:#cbd5e1">
+        <input id="dbgNavmesh" type="checkbox" /> Debug Navmesh
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:4px;font-size:12px;color:#cbd5e1">
+        <input id="dbgPaths" type="checkbox" /> Debug Agent Paths
+      </label>
+      <div style="margin-top:8px;font-size:12px">Minimap</div>
+      <canvas id="minimap" width="160" height="120" style="margin-top:4px;border:1px solid #334155;border-radius:6px;background:#020617"></canvas>
       <div style="margin-top:10px;font-size:12px">Active Agents</div>
       <ul id="agents" style="max-height:130px;overflow:auto;padding-left:18px"></ul>
     </div>
@@ -115,12 +127,38 @@ export function createUI(root: HTMLElement) {
     setLoadProgress: (p: number) => ((document.getElementById("load") as HTMLElement).textContent = `Loading: ${Math.round(p)}%`),
     setCompass: (label: string) => ((document.getElementById("compass") as HTMLElement).textContent = `Compass: ${label}`),
     onLogin: (cb: () => void) => ((document.getElementById("login") as HTMLButtonElement).onclick = cb),
+    onWalletConnectClick: (cb: () => void) => ((document.getElementById("walletConnect") as HTMLButtonElement).onclick = cb),
     onReconnect: (cb: () => void) => ((document.getElementById("reconnect") as HTMLButtonElement).onclick = cb),
     onPlayClick: (cb: () => void) => ((document.getElementById("playBtn") as HTMLButtonElement).onclick = cb),
     onEnterWorld: (cb: () => void) => ((document.getElementById("enterWorld") as HTMLButtonElement).onclick = cb),
     onAudioToggle: (cb: (enabled: boolean) => void) => {
       const el = document.getElementById("audioToggle") as HTMLInputElement;
       el.onchange = () => cb(el.checked);
+    },
+    onDebugToggle: (cb: (flags: { colliders?: boolean; navmesh?: boolean; paths?: boolean }) => void) => {
+      const c = document.getElementById("dbgColliders") as HTMLInputElement;
+      const n = document.getElementById("dbgNavmesh") as HTMLInputElement;
+      const p = document.getElementById("dbgPaths") as HTMLInputElement;
+      const emit = () => cb({ colliders: c.checked, navmesh: n.checked, paths: p.checked });
+      c.onchange = emit;
+      n.onchange = emit;
+      p.onchange = emit;
+    },
+    renderMinimap: (player: { x: number; z: number }, agents: Array<{ x: number; z: number }>) => {
+      const cv = document.getElementById("minimap") as HTMLCanvasElement;
+      const ctx = cv.getContext("2d")!;
+      ctx.clearRect(0, 0, cv.width, cv.height);
+      ctx.fillStyle = "#0f172a";
+      ctx.fillRect(0, 0, cv.width, cv.height);
+      const map = (v: number, max: number, size: number) => ((v + max) / (max * 2)) * size;
+      ctx.fillStyle = "#22d3ee";
+      ctx.beginPath();
+      ctx.arc(map(player.x, 220, cv.width), map(player.z, 220, cv.height), 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#a855f7";
+      for (const a of agents) {
+        ctx.fillRect(map(a.x, 220, cv.width) - 1, map(a.z, 220, cv.height) - 1, 3, 3);
+      }
     },
     onPointerLockToggle: (cb: (enabled: boolean) => void) => {
       const el = document.getElementById("mouseLookToggle") as HTMLInputElement;

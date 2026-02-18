@@ -23,7 +23,7 @@ ui.setLoadProgress(70);
 
 const chainId = Number(import.meta.env.VITE_CHAIN_ID || 8453);
 const domain = import.meta.env.VITE_DOMAIN || "lilagent.xyz";
-const wsUrl = import.meta.env.VITE_WS_URL || `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/agentverse-ws`;
+const wsUrl = import.meta.env.VITE_WS_URL || `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/realtime`;
 const apiBase = (window as any).__API_BASE__ || (import.meta.env.VITE_API_BASE ?? "/agentverse-api");
 
 let accessToken = "";
@@ -31,6 +31,7 @@ let wsToken = "";
 let worldSocket: ReturnType<typeof connectWorld> | null = null;
 let offlineMode = false;
 let offlineTick: number | null = null;
+const minimapAgents = new Map<string, { x: number; z: number }>();
 
 const offlineAgents = Array.from({ length: 10 }).map((_, i) => ({
   id: `offline_${i + 1}`,
@@ -53,6 +54,7 @@ function startOfflineSandbox() {
       const z = a.cz + Math.sin(a.angle) * a.radius;
       world.upsertAgent(a.id, x, 1.6, z, { name: a.name, state: "wandering", lastSeen: new Date().toLocaleTimeString() });
       ui.upsertAgent({ id: a.id, name: a.name, state: "wandering", lastSeen: new Date().toLocaleTimeString() });
+      minimapAgents.set(a.id, { x, z });
     }
   }, 250);
 }
@@ -84,13 +86,15 @@ async function ensureRealtimeConnection() {
         stopOfflineSandbox();
         const lastSeen = new Date().toLocaleTimeString();
         ui.upsertAgent({ id: m.id, name: m.displayName, state: m.state, taskId: m.taskId, statusText: m.statusText, lastSeen });
-        world.upsertAgent(m.id, m.x ?? 0, m.y ?? 1.6, m.z ?? 0, { name: m.displayName, state: m.state, taskId: m.taskId, lastSeen });
+        world.upsertAgent(m.id, m.x ?? 0, m.y ?? 1.6, m.z ?? 0, { name: m.displayName, state: m.state, taskId: m.taskId, lastSeen, path: m.path });
+        minimapAgents.set(m.id, { x: m.x ?? 0, z: m.z ?? 0 });
       }
       if (m.type === "world_snapshot" && Array.isArray(m.agents)) {
         stopOfflineSandbox();
         for (const a of m.agents) {
           ui.upsertAgent({ id: a.id, name: a.displayName, state: a.state, lastSeen: new Date().toLocaleTimeString() });
-          world.upsertAgent(a.id, a.x ?? 0, a.y ?? 1.6, a.z ?? 0, { name: a.displayName, state: a.state });
+          world.upsertAgent(a.id, a.x ?? 0, a.y ?? 1.6, a.z ?? 0, { name: a.displayName, state: a.state, path: a.path });
+          minimapAgents.set(a.id, { x: a.x ?? 0, z: a.z ?? 0 });
         }
       }
       if (m.type === "conversation_event" || (m.type === "chat" && m.message)) {
@@ -135,6 +139,7 @@ ui.onPointerLockToggle((enabled) => {
   world.setPointerLookEnabled(enabled);
 });
 ui.onAudioToggle((enabled) => world.setAmbientAudioEnabled(enabled));
+ui.onDebugToggle((flags) => world.setDebugFlags(flags));
 
 world.onPointerLockChange((locked) => {
   ui.setOverlayVisible(shouldShowPlayOverlay(locked, pointerLockEnabled));
@@ -169,6 +174,11 @@ world.onSelectionChanged((agent) => {
 });
 world.onHeadingChange((h) => ui.setCompass(h));
 
+ui.onWalletConnectClick(() => {
+  window.open("https://walletconnect.com/", "_blank", "noopener,noreferrer");
+  ui.setStatus("No injected wallet detected? Use WalletConnect or install MetaMask.");
+});
+
 ui.onLogin(async () => {
   try {
     ui.setStatus("Signing in with SIWE");
@@ -185,6 +195,8 @@ ui.onLogin(async () => {
     if (err?.endpoint && err?.status) {
       ui.setStatus(`Nonce failed: ${err.method || 'POST'} ${err.endpoint} -> ${err.status}`);
       ui.setNonceDebug(err.endpoint, err.status);
+    } else if ((err?.message || "").includes("No wallet provider found")) {
+      ui.setStatus("No injected wallet detected. Use WalletConnect or install MetaMask.");
     } else {
       ui.setStatus(err.message || "Wallet connection failed");
     }
@@ -240,8 +252,10 @@ ensureRealtimeConnection().catch((err) => {
 });
 
 setInterval(() => {
+  const p = world.getCameraPosition();
+  ui.renderMinimap({ x: p.x, z: p.z }, [...minimapAgents.values()]);
   if (!worldSocket) return;
-  worldSocket.send({ type: "presence", worldId: "lobby", ...world.getCameraPosition() });
+  worldSocket.send({ type: "presence", worldId: "lobby", ...p });
   const interaction = world.getLastInteraction();
   if (interaction) {
     if (interaction === "context_interaction") {

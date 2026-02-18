@@ -7,3 +7,4 @@ export const chatSchema = z.object({ type: z.literal("chat"), worldId: z.string(
 export const eventSchema = z.object({ type: z.literal("event"), worldId: z.string(), name: z.string(), payload: z.record(z.any()).default({}) });
 export const interactionSchema = z.object({ type: z.literal("interaction"), worldId: z.string(), targetAgentId: z.string(), action: z.string(), payload: z.record(z.any()).default({}) });
 export const taskAssignSchema = z.object({ type: z.literal("task_assign"), worldId: z.string(), agentId: z.string(), taskId: z.string() });
+export const moveToSchema = z.object({ type: z.literal("move_to"), worldId: z.string(), agentId: z.string(), target: z.object({ x: z.number(), y: z.number().optional(), z: z.number() }) });

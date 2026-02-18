@@ -11,7 +11,8 @@ import {
   chatSchema,
   eventSchema,
   interactionSchema,
-  taskAssignSchema
+  taskAssignSchema,
+  moveToSchema
 } from "./schema.js";
 import { AgentBrainEngine } from "./brain.js";
 
@@ -105,16 +106,20 @@ function agentReply(agentId: string, text: string) {
 server.on("upgrade", (req, socket, head) => {
   const token = parseTokenFromRequest(req);
   let userId: string | null = null;
+  let worldId = "lobby";
   if (token) {
     const verified = verifyWsToken(token, secret);
-    if (verified) userId = verified.sub;
+    if (verified) {
+      userId = verified.userId || verified.guestId || verified.sub;
+      worldId = verified.worldId || "lobby";
+    }
   }
 
   wss.handleUpgrade(req, socket, head, (ws) => {
     const client = ws as ClientSocket;
     client.userId = userId || `guest_${Math.random().toString(36).slice(2, 8)}`;
     client.tokenAuthed = !!userId;
-    client.worldId = "lobby";
+    client.worldId = worldId;
     client.pos = { x: 0, y: 1.6, z: 0 };
     wss.emit("connection", client, req);
   });
@@ -152,10 +157,11 @@ wss.on("connection", (ws: ClientSocket) => {
       const token = hello.data.wsToken;
       const user = token && token !== "guest" ? verifyWsToken(token, secret) : null;
       if (user) {
-        ws.userId = user.sub;
+        ws.userId = user.userId || user.guestId || user.sub;
+        ws.worldId = user.worldId || ws.worldId;
         ws.tokenAuthed = true;
       }
-      send(ws, { type: "hello", ok: true, userId: ws.userId, mode: ws.tokenAuthed ? "authenticated" : "guest" });
+      send(ws, { type: "hello", ok: true, userId: ws.userId, worldId: ws.worldId, mode: ws.tokenAuthed ? "authenticated" : "guest" });
       return;
     }
 
@@ -211,8 +217,29 @@ wss.on("connection", (ws: ClientSocket) => {
       return;
     }
 
+    const moveTo = moveToSchema.safeParse(msg);
+    if (moveTo.success) {
+      const ok = brain.setMoveTarget(moveTo.data.agentId, { x: moveTo.data.target.x, z: moveTo.data.target.z });
+      await pub.publish("agentverse:broadcast", JSON.stringify({
+        type: "agent_move_to_ack",
+        worldId: moveTo.data.worldId,
+        agentId: moveTo.data.agentId,
+        ok,
+        target: moveTo.data.target,
+        ts: Date.now()
+      }));
+      return;
+    }
+
     const taskAssign = taskAssignSchema.safeParse(msg);
     if (taskAssign.success) {
+      const moveTargets: Record<string, { x: number; z: number }> = {
+        task_portal: { x: -2, z: -55 },
+        task_meet: { x: 0, z: 95 },
+        task_patrol: { x: 0, z: -20 }
+      };
+      const target = moveTargets[taskAssign.data.taskId] || { x: 0, z: -20 };
+      brain.assignTask(taskAssign.data.agentId, taskAssign.data.taskId, target);
       pushMemory(taskAssign.data.agentId, { at: Date.now(), type: "task", content: `Assigned task ${taskAssign.data.taskId}` });
       await pub.publish("agentverse:broadcast", JSON.stringify({
         type: "task_update",
@@ -245,7 +272,10 @@ wss.on("connection", (ws: ClientSocket) => {
     }
   });
 
-  ws.on("close", () => clients.delete(ws));
+  ws.on("close", (code, reason) => {
+    console.log(JSON.stringify({ level: "info", msg: "ws closed", userId: ws.userId, code, reason: reason.toString() }));
+    clients.delete(ws);
+  });
 });
 
 setInterval(() => {
@@ -262,9 +292,8 @@ setInterval(() => {
     });
   }
 
-  // proximity greeting baseline
   const snaps = brain.getSnapshots("lobby");
-  if (snaps.length >= 2 && Math.random() < 0.1) {
+  if (snaps.length >= 2 && Math.random() < 0.08) {
     const a = snaps[0];
     const b = snaps[1];
     pub.publish("agentverse:broadcast", JSON.stringify({
@@ -277,6 +306,24 @@ setInterval(() => {
     }));
   }
 }, 200);
+
+setInterval(() => {
+  const anomaly = {
+    id: `anomaly_${Date.now()}`,
+    zone: "Forest Edge",
+    x: -120 + Math.random() * 30,
+    y: 1.6,
+    z: 30 + Math.random() * 30,
+    kind: "Research Anomaly"
+  };
+  pub.publish("agentverse:broadcast", JSON.stringify({
+    type: "environment_event",
+    worldId: "lobby",
+    name: "research_anomaly_spawned",
+    anomaly,
+    ts: Date.now()
+  }));
+}, 180000);
 
 server.listen(port, () => {
   console.log(JSON.stringify({ level: "info", msg: "agentverse-realtime started", port }));
