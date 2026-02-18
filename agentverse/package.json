@@ -1,0 +1,17 @@
+{
+  "name": "agentverse-frontend",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0 --port 80"
+  },
+  "dependencies": {
+    "ethers": "^6.13.2",
+    "three": "^0.167.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.2",
+    "vite": "^5.4.8"
+  }
+}

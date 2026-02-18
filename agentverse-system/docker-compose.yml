@@ -1,0 +1,44 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: agentverse
+      POSTGRES_PASSWORD: agentverse
+      POSTGRES_DB: agentverse
+    ports: ["5432:5432"]
+    volumes: ["pg_data:/var/lib/postgresql/data"]
+
+  redis:
+    image: redis:7
+    ports: ["6379:6379"]
+
+  agentverse-api:
+    build: ./agentverse-api
+    env_file: .env
+    depends_on: [postgres, redis]
+    ports: ["8080:8080"]
+
+  agentverse-realtime:
+    build: ./agentverse-realtime
+    env_file: .env
+    depends_on: [redis]
+    ports: ["8081:8081"]
+
+  agentverse-frontend:
+    build: ./agentverse-frontend
+    ports: ["5173:80"]
+
+  agentverse-telegram-bot:
+    build: ./agentverse-telegram-bot
+    env_file: .env
+    depends_on: [agentverse-api]
+
+  nginx:
+    image: nginx:1.27
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on: [agentverse-frontend, agentverse-api, agentverse-realtime]
+    ports: ["80:80"]
+
+volumes:
+  pg_data:
