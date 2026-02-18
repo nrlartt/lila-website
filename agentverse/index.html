@@ -54,13 +54,14 @@
   <script type="module">
     import * as THREE from 'https://unpkg.com/three@0.161.0/build/three.module.js';
     import { BrowserProvider } from 'https://esm.sh/ethers@6.13.2';
-    import { SiweMessage } from 'https://esm.sh/siwe@2.3.2';
+    import { Privy } from 'https://esm.sh/@privy-io/js-sdk-core@0.60.1';
 
     const API_BASE = '/agentverse-api';
     const WS_URL = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/agentverse-ws`;
     const CHAIN_ID = 8453;
     const DOMAIN = 'lilagent.xyz';
     const WORLD_ID = 'lobby';
+    const PRIVY_CLIENT_ID = window.__PRIVY_CLIENT_ID__ || localStorage.getItem('PRIVY_CLIENT_ID') || 'cmhuq6qqv00dfi60b72eee6bn';
 
     const statusEl = document.getElementById('status');
     const connectBtn = document.getElementById('connect');
@@ -252,43 +253,16 @@
     });
 
     // Network helpers
-    async function parseErrorResponse(r, fallback) {
-      let details = fallback;
-      try {
-        const data = await r.json();
-        if (data?.error) details = data.error;
-      } catch {}
-      return `${fallback}: ${details}`;
-    }
-
-    async function requestNonce(address) {
-      const r = await fetch(`${API_BASE}/wallet/siwe/nonce`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address, chainId: CHAIN_ID })
-      });
-      if (!r.ok) throw new Error(await parseErrorResponse(r, 'Nonce request failed'));
-      return r.json();
-    }
-
-    async function verifySiwe(message, signature) {
-      const r = await fetch(`${API_BASE}/wallet/siwe/verify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message, signature })
-      });
-      if (!r.ok) throw new Error(await parseErrorResponse(r, 'SIWE verification failed'));
-      return r.json();
-    }
-
     let ws = null;
     let presenceTimer = null;
 
-    function connectWs(wsToken) {
+    function connectWs(wsToken = '') {
       ws = new WebSocket(WS_URL);
       ws.onopen = () => {
-        ws.send(JSON.stringify({ type: 'hello', wsToken }));
-        setStatus('websocket connected');
+        if (wsToken) {
+          ws.send(JSON.stringify({ type: 'hello', wsToken }));
+        }
+        setStatus(wsToken ? 'wallet connected · websocket connected' : 'wallet connected · local mode');
       };
       ws.onmessage = (ev) => {
         try {
@@ -299,7 +273,7 @@
         } catch {}
       };
       ws.onclose = () => {
-        setStatus('websocket disconnected');
+        setStatus('wallet connected · websocket disconnected');
       };
 
       if (presenceTimer) clearInterval(presenceTimer);
@@ -316,47 +290,74 @@
       }, 2500);
     }
 
+    async function connectWithPrivy() {
+      if (!PRIVY_CLIENT_ID || PRIVY_CLIENT_ID.startsWith('REPLACE_')) {
+        throw new Error('Privy is not configured. Set window.__PRIVY_CLIENT_ID__ or localStorage.PRIVY_CLIENT_ID');
+      }
+      if (!window.ethereum) {
+        throw new Error('No injected wallet found for Privy SIWE flow');
+      }
+
+      const provider = new BrowserProvider(window.ethereum);
+      const network = await provider.getNetwork();
+      if (Number(network.chainId) !== CHAIN_ID) {
+        const hexChainId = `0x${CHAIN_ID.toString(16)}`;
+        await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: hexChainId }] });
+      }
+
+      const signer = await provider.getSigner();
+      const address = await signer.getAddress();
+
+      const privy = new Privy({ clientId: PRIVY_CLIENT_ID });
+      await privy.initialize();
+
+      const wallet = {
+        address,
+        chainId: `eip155:${CHAIN_ID}`,
+        walletClientType: 'metamask',
+        connectorType: 'injected'
+      };
+
+      const { message } = await privy.auth.siwe.init(wallet, DOMAIN, `${location.origin}/agentverse`);
+      const signature = await signer.signMessage(message);
+      await privy.auth.siwe.loginWithSiwe(signature, wallet, message);
+
+      return { address, wsToken: '' };
+    }
+
+    async function connectWithInjectedFallback() {
+      if (!window.ethereum) {
+        throw new Error('No wallet provider found');
+      }
+      const provider = new BrowserProvider(window.ethereum);
+      const network = await provider.getNetwork();
+      if (Number(network.chainId) !== CHAIN_ID) {
+        const hexChainId = `0x${CHAIN_ID.toString(16)}`;
+        await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: hexChainId }] });
+      }
+      const signer = await provider.getSigner();
+      const address = await signer.getAddress();
+      return { address, wsToken: '' };
+    }
+
     connectBtn.onclick = async () => {
       try {
         connectBtn.disabled = true;
-        setStatus('connecting wallet');
-        if (!window.ethereum) throw new Error('No wallet provider found');
+        setStatus('connecting wallet via Privy');
 
-        const provider = new BrowserProvider(window.ethereum);
-
-        const currentNetwork = await provider.getNetwork();
-        if (Number(currentNetwork.chainId) !== CHAIN_ID) {
-          const hexChainId = `0x${CHAIN_ID.toString(16)}`;
-          try {
-            await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: hexChainId }] });
-          } catch (switchErr) {
-            throw new Error('Please switch your wallet network to Base (chainId 8453) and try again');
-          }
+        let result;
+        try {
+          result = await connectWithPrivy();
+        } catch (privyErr) {
+          console.warn('Privy flow failed, falling back to injected wallet:', privyErr);
+          setStatus('Privy unavailable, using injected wallet fallback');
+          result = await connectWithInjectedFallback();
         }
 
-        const signer = await provider.getSigner();
-        const address = await signer.getAddress();
-
-        const nonceData = await requestNonce(address);
-        const siwe = new SiweMessage({
-          domain: DOMAIN,
-          address,
-          statement: 'Sign in to AGENTVERSE.',
-          uri: nonceData.uri,
-          version: '1',
-          chainId: CHAIN_ID,
-          nonce: nonceData.nonce
-        });
-
-        const message = siwe.prepareMessage();
-        const signature = await signer.signMessage(message);
-        const auth = await verifySiwe(message, signature);
-
-        setStatus('authenticated');
-        connectWs(auth.wsToken);
         upsertEntity('you', camera.position.x, 2, camera.position.z, 0xa855f7);
+        connectWs(result.wsToken || '');
       } catch (err) {
-        setStatus(err?.message || 'error');
+        setStatus(err?.message || 'wallet connection error');
       } finally {
         connectBtn.disabled = false;
       }
