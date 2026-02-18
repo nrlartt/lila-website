@@ -115,7 +115,8 @@ wss.on("connection", (ws: ClientSocket) => {
 });
 
 setInterval(() => {
-  brain.tick(Date.now());
+  const now = Date.now();
+  brain.tick(now);
 
   const byWorld = new Map<string, any[]>();
   for (const worldId of ["lobby"]) {
@@ -126,13 +127,40 @@ setInterval(() => {
     if (!ws.userId || !ws.pos || !ws.worldId) continue;
     const agents = (byWorld.get(ws.worldId) || []).filter((a) => inRadius(ws.pos!, { worldId: a.worldId, x: a.x, y: a.y, z: a.z }, updateRadius));
 
-    // lightweight batched world_update payload
     send(ws, {
       type: "world_update",
       worldId: ws.worldId,
-      ts: Date.now(),
+      ts: now,
       agents
     });
+
+    // synthetic conversation/task stream for live world feel
+    if (Math.random() < 0.03 && agents.length >= 2) {
+      const a = agents[Math.floor(Math.random() * agents.length)];
+      const b = agents[Math.floor(Math.random() * agents.length)];
+      if (a.id !== b.id) {
+        send(ws, {
+          type: "conversation_event",
+          worldId: ws.worldId,
+          from: a.id,
+          to: b.id,
+          message: `${a.displayName} synced route strategy with ${b.displayName}`,
+          ts: now
+        });
+      }
+    }
+
+    if (Math.random() < 0.02 && agents.length > 0) {
+      const a = agents[Math.floor(Math.random() * agents.length)];
+      send(ws, {
+        type: "task_update",
+        worldId: ws.worldId,
+        agentId: a.id,
+        status: a.taskId ? "in_progress" : "idle",
+        detail: a.taskId ? `Task ${a.taskId} checkpoint reached` : "No active task",
+        ts: now
+      });
+    }
   }
 }, 200);
 

@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import RAPIER from "@dimforge/rapier3d-compat";
 
 type AgentMeshRecord = {
   body: THREE.Mesh;
@@ -10,6 +11,22 @@ type AgentMeshRecord = {
 
 export function startWorld(container: HTMLElement) {
   const scene = new THREE.Scene();
+  let rapierWorld: any = null;
+  let playerBody: any = null;
+  (async () => {
+    try {
+      await RAPIER.init();
+      rapierWorld = new RAPIER.World({ x: 0, y: -9.81, z: 0 });
+      const ground = RAPIER.ColliderDesc.cuboid(160, 0.1, 160);
+      rapierWorld.createCollider(ground);
+      const rb = RAPIER.RigidBodyDesc.dynamic().setTranslation(0, 1.8, 12).setCanSleep(false);
+      playerBody = rapierWorld.createRigidBody(rb);
+      rapierWorld.createCollider(RAPIER.ColliderDesc.capsule(0.9, 0.35), playerBody);
+      (window as any).__agentversePhysics__ = "ready";
+    } catch {
+      (window as any).__agentversePhysics__ = "fallback";
+    }
+  })();
   scene.background = new THREE.Color(0x7ea9e1);
 
   const camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.1, 1200);
@@ -140,12 +157,25 @@ export function startWorld(container: HTMLElement) {
   function animate() {
     requestAnimationFrame(animate);
 
-    // movement
-    const speed = 0.18;
-    if (keys.KeyW) camera.position.z -= speed;
-    if (keys.KeyS) camera.position.z += speed;
-    if (keys.KeyA) camera.position.x -= speed;
-    if (keys.KeyD) camera.position.x += speed;
+    // movement (Rapier physics when available)
+    const speed = 2.8;
+    if (playerBody && rapierWorld) {
+      const vel = { x: 0, y: playerBody.linvel().y, z: 0 };
+      if (keys.KeyW) vel.z -= speed;
+      if (keys.KeyS) vel.z += speed;
+      if (keys.KeyA) vel.x -= speed;
+      if (keys.KeyD) vel.x += speed;
+      playerBody.setLinvel(vel, true);
+      rapierWorld.step();
+      const t = playerBody.translation();
+      camera.position.set(t.x, Math.max(1.7, t.y), t.z);
+    } else {
+      const fallback = 0.18;
+      if (keys.KeyW) camera.position.z -= fallback;
+      if (keys.KeyS) camera.position.z += fallback;
+      if (keys.KeyA) camera.position.x -= fallback;
+      if (keys.KeyD) camera.position.x += fallback;
+    }
 
     // interaction key
     if (keys.KeyE) {

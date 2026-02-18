@@ -7,6 +7,7 @@
     "preview": "vite preview --host 0.0.0.0 --port 80"
   },
   "dependencies": {
+    "@dimforge/rapier3d-compat": "^0.14.0",
     "ethers": "^6.13.2",
     "three": "^0.167.1"
   },

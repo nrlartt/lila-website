@@ -20,6 +20,7 @@ interface RuntimeAgent {
   z: number;
   targetX: number;
   targetZ: number;
+  path: Array<{ x: number; z: number }>;
   state: AgentMode;
   statusText: string;
   displayName: string;
@@ -40,6 +41,7 @@ export class AgentBrainEngine {
       z: seed.z ?? prev?.z ?? Math.random() * 30 - 15,
       targetX: seed.targetX ?? prev?.targetX ?? Math.random() * 30 - 15,
       targetZ: seed.targetZ ?? prev?.targetZ ?? Math.random() * 30 - 15,
+      path: prev?.path ?? [],
       state: seed.state ?? prev?.state ?? "idle",
       statusText: seed.statusText ?? prev?.statusText ?? "Idle",
       displayName: seed.displayName ?? prev?.displayName ?? `Agent-${seed.id.slice(0, 4)}`,
@@ -50,26 +52,42 @@ export class AgentBrainEngine {
 
   tick(now = Date.now()) {
     for (const agent of this.agents.values()) {
-      const dx = agent.targetX - agent.x;
-      const dz = agent.targetZ - agent.z;
+      if (agent.path.length === 0) {
+        if (Math.hypot(agent.targetX - agent.x, agent.targetZ - agent.z) < 1.0) {
+          agent.targetX = Math.random() * 40 - 20;
+          agent.targetZ = Math.random() * 40 - 20;
+        }
+        // lightweight planner (task -> sub-actions waypoints)
+        const midX = (agent.x + agent.targetX) / 2 + (Math.random() * 6 - 3);
+        const midZ = (agent.z + agent.targetZ) / 2 + (Math.random() * 6 - 3);
+        agent.path = [
+          { x: midX, z: midZ },
+          { x: agent.targetX, z: agent.targetZ }
+        ];
+      }
+
+      const node = agent.path[0];
+      const dx = node.x - agent.x;
+      const dz = node.z - agent.z;
       const dist = Math.hypot(dx, dz);
 
-      if (dist < 0.5) {
-        agent.state = "idle";
-        agent.statusText = agent.taskId ? "Awaiting next sub-task" : "Observing world";
-        agent.targetX = Math.random() * 40 - 20;
-        agent.targetZ = Math.random() * 40 - 20;
-        if (now - agent.lastSpokeAt > 12000) {
-          agent.state = "speaking";
-          agent.statusText = "Sharing local insights";
-          agent.lastSpokeAt = now;
+      if (dist < 0.8) {
+        agent.path.shift();
+        if (agent.path.length === 0) {
+          agent.state = "idle";
+          agent.statusText = agent.taskId ? "Task step completed" : "Observing world";
+          if (now - agent.lastSpokeAt > 12000) {
+            agent.state = "speaking";
+            agent.statusText = "Sharing local insights";
+            agent.lastSpokeAt = now;
+          }
         }
       } else {
-        const step = 0.18;
+        const step = 0.2;
         agent.x += (dx / dist) * step;
         agent.z += (dz / dist) * step;
         agent.state = "moving";
-        agent.statusText = agent.taskId ? "Executing assigned task" : "Patrolling zone";
+        agent.statusText = agent.taskId ? "Executing assigned task" : "Navigating zone route";
       }
     }
   }

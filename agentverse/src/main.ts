@@ -31,7 +31,11 @@ ui.onLogin(async () => {
       }
 
       if (m.type === "conversation_event" || (m.type === "chat" && m.message)) {
-        ui.appendAgentChat(m.userId || "agent", m.message || "...");
+        ui.appendAgentChat(m.from || m.userId || "agent", m.message || "...");
+      }
+
+      if (m.type === "task_update") {
+        ui.appendAgentChat("task", `${m.agentId}: ${m.status} • ${m.detail}`);
       }
 
       if (m.type === "environment_event") {
