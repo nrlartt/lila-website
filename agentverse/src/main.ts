@@ -2,7 +2,7 @@ import { startWorld } from "./world";
 import { createUI } from "./ui";
 import { signInWithEthereum } from "./wallet";
 import { connectWorld } from "./ws";
-import { createTask, getAgentMemories } from "./api";
+import { createTask, getAgentMemories, getGuestToken, getSessionToken, chatAgent, getKioskTasks } from "./api";
 import { shouldShowPlayOverlay } from "./pointerLockFlow";
 
 const app = document.getElementById("app") || (() => {
@@ -68,12 +68,7 @@ function stopOfflineSandbox() {
 
 async function ensureGuestWsToken() {
   if (wsToken) return wsToken;
-  const endpoint = `${apiBase}/realtime/guest-token`;
-  const r = await fetch(endpoint);
-  if (!r.ok) {
-    throw new Error(`Guest token request failed at ${endpoint} (HTTP ${r.status})`);
-  }
-  const data = await r.json();
+  const data = await getGuestToken();
   wsToken = data.wsToken;
   return wsToken;
 }
@@ -179,7 +174,8 @@ ui.onLogin(async () => {
     ui.setStatus("Signing in with SIWE");
     const auth = await signInWithEthereum(chainId, domain);
     accessToken = auth.accessToken;
-    wsToken = auth.wsToken;
+    const session = await getSessionToken(accessToken).catch(() => ({ wsToken: auth.wsToken }));
+    wsToken = session.wsToken;
     ui.setStatus("Wallet connected");
     if (worldSocket) {
       worldSocket.setToken(wsToken);
@@ -187,6 +183,7 @@ ui.onLogin(async () => {
     }
   } catch (err: any) {
     if (err?.endpoint && err?.status) {
+      ui.setStatus(`Nonce failed: ${err.method || 'POST'} ${err.endpoint} -> ${err.status}`);
       ui.setNonceDebug(err.endpoint, err.status);
     } else {
       ui.setStatus(err.message || "Wallet connection failed");
@@ -194,7 +191,7 @@ ui.onLogin(async () => {
   }
 });
 
-ui.onChatSend((agentId, text) => {
+ui.onChatSend(async (agentId, text) => {
   if (offlineMode) {
     const response = text.toLowerCase().includes("portal")
       ? "Offline agent: Portal Gate is west of the plaza road."
@@ -204,7 +201,12 @@ ui.onChatSend((agentId, text) => {
     setTimeout(() => ui.appendAgentChat(agentId, response), 250);
     return;
   }
-  worldSocket?.send({ type: "interaction", worldId: "lobby", targetAgentId: agentId, action: "chat", payload: { text } });
+  try {
+    const r = await chatAgent(agentId, text, accessToken || undefined);
+    ui.appendAgentChat(agentId, r.reply || "Acknowledged");
+  } catch (err: any) {
+    ui.appendAgentChat("system", err.message || "Online agent chat failed");
+  }
 });
 
 ui.onAssignTask(async (agentId, title) => {
@@ -242,6 +244,14 @@ setInterval(() => {
   worldSocket.send({ type: "presence", worldId: "lobby", ...world.getCameraPosition() });
   const interaction = world.getLastInteraction();
   if (interaction) {
+    if (interaction === "context_interaction") {
+      getKioskTasks().then((res) => {
+        const titles = (res.tasks || []).map((t: any) => `${t.title} (${t.rewardCredits} credits)`).join(" | ");
+        ui.appendAgentChat("kiosk", `Available tasks: ${titles}`);
+      }).catch(() => {
+        ui.appendAgentChat("kiosk", "Task kiosk unavailable right now.");
+      });
+    }
     worldSocket.send({ type: "event", worldId: "lobby", name: "interaction", payload: { interaction } });
     world.clearLastInteraction();
   }

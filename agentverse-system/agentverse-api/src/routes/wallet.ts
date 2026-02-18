@@ -20,7 +20,13 @@ router.post("/siwe/nonce", async (req, res) => {
     [nonce, parsed.data.address.toLowerCase(), config.domain, config.chainId, expiresAt]
   );
 
-  res.json({ nonce, domain: config.domain, chainId: config.chainId, uri: `https://${config.domain}/agentverse` });
+  res.json({
+    nonce,
+    domain: config.domain,
+    statement: "Sign in to AGENTVERSE.",
+    chainId: config.chainId,
+    uri: `https://${config.domain}/agentverse`
+  });
 });
 
 router.post("/siwe/verify", async (req, res) => {
@@ -55,7 +61,7 @@ router.post("/siwe/verify", async (req, res) => {
   const apiJti = randomUUID();
   const wsJti = randomUUID();
   const accessToken = jwt.sign({ sub: userId, typ: "api", jti: apiJti }, config.jwtSecret, { expiresIn: config.jwtTtlSeconds });
-  const wsToken = jwt.sign({ sub: userId, typ: "ws", jti: wsJti }, config.jwtSecret, { expiresIn: config.wsTokenTtlSeconds });
+  const wsToken = jwt.sign({ sub: userId, typ: "ws", jti: wsJti, worldId: "lobby", userId }, config.jwtSecret, { expiresIn: config.wsTokenTtlSeconds });
 
   await pool.query(
     `INSERT INTO agentverse_sessions (user_id,api_jti,ws_jti,api_expires_at,ws_expires_at)

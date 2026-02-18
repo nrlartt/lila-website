@@ -1,80 +1,85 @@
 # AgentVerse Frontend
 
+## Run
+
+```bash
+cd agentverse
+npm install
+npm run test
+npm run build
+```
+
+For full stack (API + realtime + DB), use `agentverse-system/docker-compose.yml`.
+
 ## Controls
 
-- **Enter World** or **Enter World (Pointer Lock)**: activates FPS mouse look.
+- **Connect Wallet**: SIWE login for ownership actions.
+- **Enter World** / **Enter World (Pointer Lock)**: FPS look + movement.
 - **W / A / S / D**: move.
 - **Shift**: sprint.
-- **E**: context interaction.
-- **Esc**: release mouse and return to UI mode.
-- **Ambient Audio**: optional low-volume atmosphere.
+- **E**: interact with context (Task Kiosk shortcut).
+- **Esc**: release mouse.
+- **Ambient Audio**: optional environment tone.
 
-## Wallet Flow
+## Wallet flow
 
-- You can explore as **Guest** without wallet.
-- Wallet connection (EVM + SIWE) is required for ownership actions (task assignment and protected actions).
-- Guest realtime token endpoint: `GET /agentverse-api/realtime/guest-token`.
+- Explore as **Guest** (no wallet required).
+- Ownership actions require wallet + SIWE.
+- Canonical SIWE endpoints:
+  - `POST /agentverse-api/wallet/siwe/nonce`
+  - `POST /agentverse-api/wallet/siwe/verify`
 
-## Offline Mode Behavior
+## Offline mode behavior
 
-- If realtime is unavailable, AgentVerse switches to **Offline Sandbox Mode**.
-- A banner appears: `Offline Mode — realtime unavailable`.
-- Local agents remain visible and interactive.
-- Local stub brain handles chat responses and basic task acknowledgements.
-- When realtime reconnects, server entities replace sandbox flow automatically.
+- If realtime disconnects, UI enters **Offline Sandbox Mode**.
+- Local agents remain visible and chat-capable.
+- Banner is shown: `Offline Mode — realtime unavailable`.
+- On reconnect, server agents replace local sandbox entities.
 
-## World Generation Module
+## Realtime debugging guide
 
-The world is generated procedurally with four connected zones:
+### 405 on nonce endpoint
 
-1. **Town Center**
-   - plaza, statue, portal gate, billboard, kiosk, fountain.
-2. **Residential Area**
-   - clustered houses, yards, street lamps.
-3. **Forest Edge**
-   - instanced trees, rocks, pond, bridge.
-4. **Research District**
-   - lab structures, signs, terminals, arch landmark.
+If you see nonce 405:
 
-### Generation strategy
+1. Confirm frontend uses `POST /wallet/siwe/nonce`.
+2. Check API base in frontend (`window.__API_BASE__` or `VITE_API_BASE`).
+3. Verify proxy forwards `/agentverse-api/*` to `agentverse-api` service.
+4. Ensure no proxy rule rewrites POST to GET.
 
-- Terrain uses a lightweight height function (small hills, no heavy assets).
-- Roads are geometry-based strips across zones.
-- Repeated assets use **InstancedMesh** for performance.
-- Landmark labels are projected in screen space.
+### WebSocket checks
 
-## Realtime Debugging Guide
-
-### Common close codes
-
-- `1000`: normal close.
-- `1006`: abnormal close (network/proxy interruption).
-- `4401`: token invalid or expired.
-- `4408`: realtime rate limit exceeded.
-
-### Verify WS URL
-
-1. Check WS URL shown in the HUD status area.
-2. Confirm console logs: `[AgentVerse WS] Connecting ...`.
-3. On HTTPS pages, URL must be `wss://...`.
-
-### Why guest-token might return 404
-
-1. API route not mounted: verify `/realtime/guest-token` is registered in API app.
-2. Reverse proxy missing `/agentverse-api` forwarding.
-3. Wrong API base in frontend (`VITE_API_BASE` / `window.__API_BASE__`).
-4. API container not restarted after route changes.
-
-### Reverse proxy checklist
-
-1. Forward `/agentverse-api/*` to API service.
-2. Forward `/agentverse-ws` with websocket upgrade headers.
-3. Ensure idle timeout supports long-lived websocket sessions.
+1. Verify HUD displays expected `wsUrl`.
+2. On HTTPS page, url must be `wss://...`.
+3. Confirm reverse proxy forwards Upgrade headers for `/agentverse-ws`.
+4. Inspect UI telemetry: close code, close reason, retry timer.
 
 ### Smoke test
 
 ```bash
 node agentverse-system/scripts/ws_smoke_test.js
-# optional explicit target
+# optional explicit endpoint
 AGENTVERSE_WS_URL=wss://lilagent.xyz/agentverse-ws AGENTVERSE_WS_TOKEN=<token> node agentverse-system/scripts/ws_smoke_test.js
 ```
+
+### SIWE quick test
+
+```bash
+curl -X POST https://lilagent.xyz/agentverse-api/wallet/siwe/nonce \
+  -H "Content-Type: application/json" \
+  -d '{"address":"0x1234567890123456789012345678901234567890","chainId":8453}'
+```
+
+## World generation module
+
+Zones:
+1. **Town Center** (plaza, statue, portal gate, billboard, kiosk)
+2. **Residential Area** (houses, lamps, roads)
+3. **Forest Edge** (instanced trees/rocks, pond, bridge)
+4. **Research District** (lab blocks, signs, arch)
+
+Generation strategy:
+- Height-based terrain function (lightweight hills)
+- Geometry roads between zones
+- InstancedMesh for repeated trees and rocks
+- Dynamic labels projected above landmarks

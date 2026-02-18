@@ -67,4 +67,31 @@ router.get("/status/:id", requireAuth, async (req: AuthRequest, res) => {
   res.json({ success: true, agent: q.rows[0] });
 });
 
+router.post("/:id/chat", async (req, res) => {
+  const parsed = z.object({ message: z.string().min(1).max(500), userId: z.string().optional() }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid chat payload" });
+
+  const agentQ = await pool.query(`SELECT id, display_name, status, world_id FROM agentverse_agents WHERE id=$1 OR external_agent_id=$1`, [req.params.id]);
+  if (!agentQ.rowCount) return res.status(404).json({ error: "Agent not found" });
+  const agent = agentQ.rows[0];
+
+  const userId = parsed.data.userId || "guest";
+  const reply = parsed.data.message.toLowerCase().includes("portal")
+    ? `${agent.display_name}: I can guide you to the Portal Gate via Town Center.`
+    : parsed.data.message.toLowerCase().includes("patrol")
+      ? `${agent.display_name}: Patrol task accepted. Moving to plaza loop.`
+      : `${agent.display_name}: Acknowledged. I stored this message in short-term memory.`;
+
+  const participants = JSON.stringify([userId, agent.id]);
+  const lastMessage = JSON.stringify({ from: userId, to: agent.id, text: parsed.data.message, reply, ts: Date.now() });
+
+  await pool.query(
+    `INSERT INTO agentverse_conversations (world_id, participants, state, last_message, updated_at)
+     VALUES ($1,$2::jsonb,$3::jsonb,$4::jsonb,NOW())`,
+    [agent.world_id || "lobby", participants, JSON.stringify({ phase: "active" }), lastMessage]
+  );
+
+  res.json({ success: true, reply, messageId: `msg_${Date.now()}` });
+});
+
 export default router;

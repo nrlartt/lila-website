@@ -54,7 +54,7 @@ router.post("/:id/assign", requireAuth, async (req: AuthRequest, res) => {
   res.json({ success: true, task: q.rows[0] });
 });
 
-router.get("/list", requireAuth, async (_req, res) => {
+router.get("/list", async (_req, res) => {
   const q = await pool.query(
     `SELECT id,assigned_to,title,status,reward,reward_token,location,required_capabilities,updated_at
        FROM agentverse_tasks
@@ -62,6 +62,17 @@ router.get("/list", requireAuth, async (_req, res) => {
       LIMIT 200`
   );
   res.json({ success: true, tasks: q.rows });
+});
+
+router.get("/kiosk", async (_req, res) => {
+  res.json({
+    success: true,
+    tasks: [
+      { id: "kiosk_portal", title: "Go to Portal", description: "Inspect Portal Gate resonance.", zone: "Town Center", rewardCredits: 25, difficulty: "easy", estimatedTime: "3m" },
+      { id: "kiosk_meet", title: "Meet Agent X", description: "Coordinate with a research agent.", zone: "Research District", rewardCredits: 35, difficulty: "medium", estimatedTime: "5m" },
+      { id: "kiosk_patrol", title: "Patrol Plaza", description: "Run one full patrol loop.", zone: "Town Center", rewardCredits: 20, difficulty: "easy", estimatedTime: "4m" }
+    ]
+  });
 });
 
 export default router;
