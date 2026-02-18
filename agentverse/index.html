@@ -258,12 +258,15 @@
     let presenceTimer = null;
 
     function connectWs(wsToken = '') {
+      if (!wsToken) {
+        setStatus('wallet connected · local mode');
+        return;
+      }
+
       ws = new WebSocket(WS_URL);
       ws.onopen = () => {
-        if (wsToken) {
-          ws.send(JSON.stringify({ type: 'hello', wsToken }));
-        }
-        setStatus(wsToken ? 'wallet connected · websocket connected' : 'wallet connected · local mode');
+        ws.send(JSON.stringify({ type: 'hello', wsToken }));
+        setStatus('wallet connected · websocket connected');
       };
       ws.onmessage = (ev) => {
         try {
