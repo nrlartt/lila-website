@@ -78,6 +78,19 @@ export function createUI(root: HTMLElement) {
 
     <div style="position:fixed;left:50%;bottom:10px;transform:translateX(-50%);z-index:35;background:rgba(8,10,20,.72);border:1px solid #334155;border-radius:999px;padding:6px 10px;color:#e2e8f0;font-size:12px;font-family:Inter,system-ui,sans-serif;pointer-events:none">
       [W/A/S/D] Move • [Shift] Sprint • [E] Interact • [Esc] Release mouse
+    </div>
+
+    <div id="expoAd" style="position:fixed;right:12px;bottom:12px;z-index:42;max-width:360px;background:linear-gradient(135deg,rgba(17,24,39,.94),rgba(30,41,59,.94));border:1px solid #475569;border-radius:12px;padding:12px;color:#e2e8f0;font-family:Inter,system-ui,sans-serif;box-shadow:0 10px 30px rgba(2,6,23,.45)">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <div style="font-weight:700;letter-spacing:.06em">🚀 AGENT EXPO HALL NOW LIVE</div>
+        <button id="expoAdClose" style="background:transparent;border:1px solid #64748b;color:#cbd5e1;border-radius:6px;padding:2px 6px;cursor:pointer">×</button>
+      </div>
+      <div style="margin-top:8px;font-size:12px;line-height:1.45;color:#cbd5e1">
+        Kategorilere ayrılmış yeni agent alanı açıldı: <b>/ACQUIRE</b>, <b>/GAME</b>, <b>/OPS</b>, <b>/STARTUP</b> ve daha fazlası.
+      </div>
+      <div style="margin-top:8px;font-size:12px;color:#93c5fd">
+        Enter World → Expo bölgesine git → network kur → görev kap.
+      </div>
     </div>`
   );
 
@@ -86,6 +99,12 @@ export function createUI(root: HTMLElement) {
 
   const agentsList = document.getElementById("agents") as HTMLUListElement;
   const panel = document.getElementById("interactionPanel") as HTMLElement;
+  const expoAd = document.getElementById("expoAd") as HTMLElement | null;
+  const expoAdClose = document.getElementById("expoAdClose") as HTMLButtonElement | null;
+
+  expoAdClose?.addEventListener("click", () => {
+    if (expoAd) expoAd.style.display = "none";
+  });
 
   const redraw = () => {
     agentsList.innerHTML = "";

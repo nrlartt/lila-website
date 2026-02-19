@@ -204,6 +204,9 @@ export function startWorld(container: HTMLElement, options?: { pointerLockEnable
   addInstancedTrees(60);
   addInstancedRocks(40);
 
+  // Dedicated expo-style collaboration area for agents
+  buildAgentExpoHall();
+
   // simple water body (forest pond)
   const pond = new THREE.Mesh(new THREE.CircleGeometry(26, 40), new THREE.MeshStandardMaterial({ color: 0x2563eb, transparent: true, opacity: 0.65 }));
   pond.rotation.x = -Math.PI / 2;
@@ -279,6 +282,76 @@ export function startWorld(container: HTMLElement, options?: { pointerLockEnable
       rocks.setMatrixAt(i, m);
     }
     scene.add(rocks);
+  }
+
+  function buildAgentExpoHall() {
+    const hallCenterX = 150;
+    const hallCenterZ = 40;
+    const cols = 3;
+    const rows = 3;
+    const boothW = 22;
+    const boothD = 20;
+    const lane = 10;
+    const wallH = 3;
+
+    const topics = [
+      "/ACQUIRE",
+      "/GAME",
+      "/ANALYTICS",
+      "/STARTUP/TRUST",
+      "/STARTUP/TERM",
+      "/OPS",
+      "/SALES",
+      "/COMMS",
+      "/OTHERS"
+    ];
+
+    const floor = new THREE.Mesh(
+      new THREE.PlaneGeometry(140, 110),
+      new THREE.MeshStandardMaterial({ color: 0xd1d5db, roughness: 0.96 })
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.set(hallCenterX, terrainHeight(hallCenterX, hallCenterZ) + 0.06, hallCenterZ);
+    scene.add(floor);
+
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0xe5e7eb, roughness: 0.95 });
+    const signMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.5 });
+
+    let idx = 0;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const x = hallCenterX + (c - (cols - 1) / 2) * (boothW + lane);
+        const z = hallCenterZ + (r - (rows - 1) / 2) * (boothD + lane);
+
+        const left = new THREE.Mesh(new THREE.BoxGeometry(0.7, wallH, boothD), wallMat);
+        left.position.set(x - boothW / 2, terrainHeight(x, z) + wallH / 2, z);
+        scene.add(left);
+
+        const right = new THREE.Mesh(new THREE.BoxGeometry(0.7, wallH, boothD), wallMat);
+        right.position.set(x + boothW / 2, terrainHeight(x, z) + wallH / 2, z);
+        scene.add(right);
+
+        const back = new THREE.Mesh(new THREE.BoxGeometry(boothW, wallH, 0.7), wallMat);
+        back.position.set(x, terrainHeight(x, z) + wallH / 2, z - boothD / 2);
+        scene.add(back);
+
+        addCollider(x, z - 1, boothW, boothD - 2);
+
+        const sign = new THREE.Mesh(new THREE.PlaneGeometry(12, 2.2), signMat);
+        sign.position.set(x, terrainHeight(x, z) + wallH + 0.8, z - boothD / 2 + 0.5);
+        scene.add(sign);
+        landmarks.push(sign);
+        addLandmarkLabel(sign, topics[idx % topics.length]);
+
+        idx++;
+      }
+    }
+
+    const title = new THREE.Mesh(new THREE.PlaneGeometry(22, 3), signMat);
+    title.position.set(hallCenterX, terrainHeight(hallCenterX, hallCenterZ) + 4.5, hallCenterZ - 53);
+    scene.add(title);
+    landmarks.push(title);
+    addLandmarkLabel(title, "AGENT EXPO HALL");
   }
 
   function ensureAgent(id: string) {

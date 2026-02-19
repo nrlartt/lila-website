@@ -18,7 +18,44 @@ ui.setLoadProgress(10);
 let pointerLockEnabled = true;
 const worldContainer = document.createElement("div");
 app.appendChild(worldContainer);
-const world = startWorld(worldContainer, { pointerLockEnabled: () => pointerLockEnabled });
+
+let world: ReturnType<typeof startWorld>;
+let webglAvailable = true;
+try {
+  world = startWorld(worldContainer, { pointerLockEnabled: () => pointerLockEnabled });
+} catch (err) {
+  webglAvailable = false;
+  const fallback = document.createElement("div");
+  fallback.style.position = "fixed";
+  fallback.style.inset = "0";
+  fallback.style.display = "flex";
+  fallback.style.alignItems = "center";
+  fallback.style.justifyContent = "center";
+  fallback.style.background = "radial-gradient(circle at 50% 40%, #0f172a 0%, #020617 65%)";
+  fallback.style.color = "#cbd5e1";
+  fallback.style.fontFamily = "Inter, system-ui, sans-serif";
+  fallback.style.fontSize = "14px";
+  fallback.innerHTML = "<div style='text-align:center;max-width:520px;padding:16px'>⚠️ WebGL başlatılamadı.<br/>Tarayıcıda Hardware Acceleration'ı açıp sayfayı yenileyin.</div>";
+  worldContainer.appendChild(fallback);
+
+  const dummyCanvas = document.createElement("div") as unknown as HTMLCanvasElement;
+  world = {
+    zones: [],
+    canvas: dummyCanvas,
+    onSelectionChanged: () => {},
+    onPointerLockChange: () => {},
+    onHeadingChange: () => {},
+    upsertAgent: () => {},
+    tryLockPointer: () => false,
+    setPointerLookEnabled: () => {},
+    setAmbientAudioEnabled: () => {},
+    setDebugFlags: () => {},
+    isPointerLocked: () => false,
+    getCameraPosition: () => ({ x: 0, y: 1.7, z: 0 }),
+    getLastInteraction: () => null,
+    clearLastInteraction: () => {}
+  } as ReturnType<typeof startWorld>;
+}
 ui.setLoadProgress(70);
 
 const chainId = Number(import.meta.env.VITE_CHAIN_ID || 8453);
@@ -274,4 +311,4 @@ setInterval(() => {
 }, 800);
 
 ui.setLoadProgress(100);
-ui.setStatus("Ready");
+ui.setStatus(webglAvailable ? "Ready" : "WebGL unavailable (fallback mode)");
