@@ -2,6 +2,8 @@ import * as THREE from 'https://unpkg.com/three@0.167.1/build/three.module.js';
 import { HubControls } from './HubControls.js';
 import { createSwarm, tickAgents } from './sim_loop.js';
 import { statusFromState } from './agent_fsm.js';
+import { AgentLabelSystem } from './AgentLabelSystem.js';
+import { HoverInteractionSystem } from './HoverInteractionSystem.js';
 
 const app = document.getElementById('app');
 const out = document.getElementById('out');
@@ -42,6 +44,22 @@ scene.add(new THREE.GridHelper(640, 128, 0x838383, 0x8f8f8f));
 const zoneMap = new Map();
 const zoneCenters = new Map();
 const zoneLabels = [];
+const interactableMeshes = [];
+
+// Modules
+const controls = new HubControls({
+  domElement: renderer.domElement,
+  camera,
+  groundY: 0,
+  minZoom: 10,
+  maxZoom: 120,
+  panSpeed: 1.0,
+  zoomSpeed: 0.0028,
+  rotateSpeed: 0.0032
+});
+
+const labels = new AgentLabelSystem(scene, camera);
+const interaction = new HoverInteractionSystem(renderer.domElement, camera, controls);
 
 function textCanvas(text, w = 720, h = 130, bg = '#101010', fg = '#fff', font = 'bold 56px monospace') {
   const c = document.createElement('canvas'); c.width = w; c.height = h;
@@ -56,7 +74,8 @@ function zoneLabel(path) {
   const t = new THREE.CanvasTexture(textCanvas(path));
   const m = new THREE.Mesh(new THREE.PlaneGeometry(16, 2.8), new THREE.MeshBasicMaterial({ map: t }));
   m.rotation.x = -Math.PI / 8;
-  m.userData.path = path;
+  m.userData.id = path;
+  m.userData.type = 'zone';
   return m;
 }
 
@@ -74,50 +93,31 @@ function addZone(path, x, z) {
   const back = new THREE.Mesh(new THREE.BoxGeometry(30, 4, 1), wallMat); back.position.set(0, 2, -11);
   g.add(left, right, back);
 
-  const edge = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(30, 4, 22)), new THREE.LineBasicMaterial({ color: 0xb8b8b8 }));
-  edge.position.y = 2;
-  g.add(edge);
-
   const label = zoneLabel(path);
   label.position.set(0, 5.9, -9.5);
   g.add(label);
+
+  g.userData.id = path;
+  g.userData.type = 'zone';
 
   scene.add(g);
   zoneMap.set(path.toUpperCase(), label);
   zoneCenters.set(path.toUpperCase(), new THREE.Vector3(x, 0, z));
   zoneLabels.push(label);
+  interactableMeshes.push(g);
 }
 
 ZONES.forEach((z, i) => addZone(z, layout[i][0], layout[i][1]));
 
 const cMat = new THREE.MeshLambertMaterial({ color: 0x888888 });
 [[170, -28, 16], [170, 10, 16], [16, 8, 122], [88, 48, 16]].forEach(([w, z, d], i) => {
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(i === 2 ? w : w, 0.12, i === 2 ? d : d), cMat);
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, 0.12, d), cMat);
   mesh.position.set(i === 2 ? 2 : (i === 3 ? 24 : 2), 0.06, z);
   scene.add(mesh);
 });
 
-const controls = new HubControls({
-  domElement: renderer.domElement,
-  camera,
-  groundY: 0,
-  minZoom: 10,
-  maxZoom: 120,
-  panSpeed: 1.0,
-  zoomSpeed: 0.0028,
-  rotateSpeed: 0.0032
-});
-
 const swarm = createSwarm(140);
 const agentMeshes = [];
-
-function idSprite(id, status) {
-  const tex = new THREE.CanvasTexture(textCanvas(`${id} [${status}]`, 330, 64, 'rgba(0,0,0,.72)', '#f4f4f4', 'bold 28px monospace'));
-  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
-  sp.scale.set(6.6, 1.3, 1);
-  return sp;
-}
-
 const statusColor = { idle: 0x9ca3af, executing: 0x10b981, syncing: 0x3b82f6, error: 0xef4444 };
 
 swarm.forEach((m) => {
@@ -126,16 +126,34 @@ swarm.forEach((m) => {
   body.position.y = 0.95;
   const core = new THREE.Mesh(new THREE.SphereGeometry(0.19, 10, 10), new THREE.MeshBasicMaterial({ color: statusColor.idle }));
   core.position.set(0, 1.38, 0.28);
-  const tag = idSprite(m.ctx.id, 'idle');
-  tag.position.set(0, 2.4, 0);
-  g.add(body, core, tag);
+  g.add(body, core);
   g.position.set(m.ctx.position.x, 0, m.ctx.position.z);
-  g.userData.agentId = m.ctx.id;
-  g.userData.tag = tag;
+  
+  g.userData.id = m.ctx.id;
+  g.userData.type = 'agent';
   g.userData.core = core;
+  g.userData.body = body;
+
   scene.add(g);
   agentMeshes.push(g);
+  interactableMeshes.push(g);
 });
+
+// Hover Effect Integration
+interaction.onHoverChange = (id, type, isHovering) => {
+  if (type === 'agent') {
+    const mesh = agentMeshes.find(m => m.userData.id === id);
+    if (mesh) {
+      mesh.userData.body.material.emissive.setHex(isHovering ? 0x333333 : 0x000000);
+      mesh.userData.body.material.emissiveIntensity = isHovering ? 0.4 : 0;
+    }
+  } else if (type === 'zone') {
+    const label = zoneLabels.find(l => l.userData.id === id);
+    if (label) {
+      label.material.color.setHex(isHovering ? 0xcccccc : 0xffffff);
+    }
+  }
+};
 
 function focusZone(path, zoom) {
   const center = zoneCenters.get(path.toUpperCase());
@@ -187,38 +205,13 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
-const ray = new THREE.Raycaster();
-const mouse = new THREE.Vector2();
-renderer.domElement.addEventListener('click', (e) => {
-  if (e.target !== renderer.domElement) return;
-  const r = renderer.domElement.getBoundingClientRect();
-  mouse.x = ((e.clientX - r.left) / r.width) * 2 - 1;
-  mouse.y = -((e.clientY - r.top) / r.height) * 2 + 1;
-  ray.setFromCamera(mouse, camera);
-
-  const zHit = ray.intersectObjects(zoneLabels, true)[0];
-  if (zHit?.object?.userData?.path) {
-    focusZone(zHit.object.userData.path, 30);
-    return;
-  }
-
-  const aHit = ray.intersectObjects(agentMeshes, true)[0];
-  if (aHit) {
-    const root = aHit.object.parent?.userData?.agentId ? aHit.object.parent : aHit.object;
-    const id = root.userData.agentId;
-    const a = swarm.find(s => s.ctx.id === id);
-    if (a) {
-      controls.focusTo(new THREE.Vector3(a.ctx.position.x, 0, a.ctx.position.z), { distance: 22 });
-      out.textContent = `${id} • ${statusFromState(a.state)} • task:${a.ctx.task?.payload?.text || a.ctx.task?.type || 'none'}`;
-    }
-  }
-});
-
 let last = performance.now();
 function animate(now) {
   requestAnimationFrame(animate);
   const dt = Math.min((now - last) / 1000, 0.05);
   last = now;
+
+  interaction.update(now, interactableMeshes);
 
   const ticked = tickAgents(swarm, Date.now(), dt, zoneCenters);
   for (let i = 0; i < ticked.length; i++) {
@@ -230,12 +223,8 @@ function animate(now) {
     const st = statusFromState(s.state);
     m.userData.core.material.color.setHex(statusColor[st]);
 
-    if (Math.random() < 0.01) {
-      m.remove(m.userData.tag);
-      m.userData.tag = idSprite(s.ctx.id, st);
-      m.userData.tag.position.set(0, 2.4, 0);
-      m.add(m.userData.tag);
-    }
+    const isHovered = (interaction.hoveredObject === s.ctx.id);
+    labels.updateLabel(s.ctx.id, m, s.ctx.id, st, isHovered);
   }
 
   controls.update(dt);
