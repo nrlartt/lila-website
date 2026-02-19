@@ -7,11 +7,18 @@ import { HoverInteractionSystem } from './HoverInteractionSystem.js';
 import { LoadVizSystem } from './LoadVizSystem.js';
 import { DataFlowVizSystem } from './DataFlowVizSystem.js';
 import { SwarmCoordinator } from './SwarmCoordinator.js';
+import { TerminalCore, CommandRegistry, OutputType } from './TerminalCore.js';
+import { TerminalUI } from './TerminalUI.js';
+import { SystemDiagnostics } from './SystemDiagnostics.js';
 
 const app = document.getElementById('app');
-const out = document.getElementById('out');
-const cmd = document.getElementById('cmd');
-const run = document.getElementById('run');
+const container = document.getElementById('terminal-container') || app;
+
+// 1. Initial Core Modules
+const registry = new CommandRegistry();
+const terminalCore = new TerminalCore(registry);
+const terminalUI = new TerminalUI(container, terminalCore);
+const diag = new SystemDiagnostics();
 
 const ZONES = [
   '/AGENTS/STATUS', '/AGENTS/DEPLOY', '/TASK/ASSIGN', '/SIMULATION', '/EVALUATION',
@@ -25,7 +32,6 @@ const layout = [
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x8f8f8f);
-
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
@@ -38,7 +44,6 @@ scene.add(new THREE.AmbientLight(0xffffff, 0.78));
 const key = new THREE.DirectionalLight(0xffffff, 0.45);
 key.position.set(40, 90, 20);
 scene.add(key);
-
 scene.add(new THREE.GridHelper(640, 128, 0x838383, 0x8f8f8f));
 
 const zoneMap = new Map();
@@ -46,22 +51,11 @@ const zoneCenters = new Map();
 const zoneLabels = [];
 const interactableMeshes = [];
 
-// Modules
-const controls = new HubControls({
-  domElement: renderer.domElement,
-  camera,
-  groundY: 0,
-  minZoom: 10,
-  maxZoom: 120,
-  panSpeed: 1.0,
-  zoomSpeed: 0.0028,
-  rotateSpeed: 0.0032
-});
-
+const controls = new HubControls({ domElement: renderer.domElement, camera, groundY: 0 });
 const labels = new AgentLabelSystem(scene, camera);
 const interaction = new HoverInteractionSystem(renderer.domElement, camera, controls);
-const loadViz = new LoadVizSystem(scene, { baseColor: new THREE.Color(0x8f8f8f) });
-const dataFlow = new DataFlowVizSystem(scene, { maxLinks: 80 });
+const loadViz = new LoadVizSystem(scene);
+const dataFlow = new DataFlowVizSystem(scene);
 const swarmCoordinator = new SwarmCoordinator();
 
 function textCanvas(text, w = 720, h = 130, bg = '#101010', fg = '#fff', font = 'bold 56px monospace') {
@@ -73,53 +67,29 @@ function textCanvas(text, w = 720, h = 130, bg = '#101010', fg = '#fff', font = 
   return c;
 }
 
-function zoneLabel(path) {
-  const t = new THREE.CanvasTexture(textCanvas(path));
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(16, 2.8), new THREE.MeshBasicMaterial({ map: t }));
-  m.rotation.x = -Math.PI / 8;
-  m.userData.id = path;
-  m.userData.type = 'zone';
-  return m;
-}
-
 function addZone(path, x, z) {
   const g = new THREE.Group();
   g.position.set(x, 0, z);
   const floor = new THREE.Mesh(new THREE.BoxGeometry(30, 0.24, 22), new THREE.MeshLambertMaterial({ color: 0xd8d8d8 }));
   floor.position.y = 0.12;
   g.add(floor);
-  const wallMat = new THREE.MeshLambertMaterial({ color: 0xe3e3e3 });
-  const left = new THREE.Mesh(new THREE.BoxGeometry(1, 4, 22), wallMat); left.position.set(-15, 2, 0);
-  const right = left.clone(); right.position.x = 15;
-  const back = new THREE.Mesh(new THREE.BoxGeometry(30, 4, 1), wallMat); back.position.set(0, 2, -11);
-  g.add(left, right, back);
-  const label = zoneLabel(path);
+  const labelTex = new THREE.CanvasTexture(textCanvas(path));
+  const label = new THREE.Mesh(new THREE.PlaneGeometry(16, 2.8), new THREE.MeshBasicMaterial({ map: labelTex }));
+  label.rotation.x = -Math.PI / 8;
   label.position.set(0, 5.9, -9.5);
   g.add(label);
-  g.userData.id = path;
-  g.userData.type = 'zone';
+  g.userData = { id: path, type: 'zone' };
   scene.add(g);
-  zoneMap.set(path.toUpperCase(), label);
   zoneCenters.set(path.toUpperCase(), new THREE.Vector3(x, 0, z));
   zoneLabels.push(label);
   interactableMeshes.push(g);
   loadViz.registerZone(path.toUpperCase(), g);
 }
-
 ZONES.forEach((z, i) => addZone(z, layout[i][0], layout[i][1]));
 
-const cMat = new THREE.MeshLambertMaterial({ color: 0x888888 });
-[[170, -28, 16], [170, 10, 16], [16, 8, 122], [88, 48, 16]].forEach(([w, z, d], i) => {
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, 0.12, d), cMat);
-  mesh.position.set(i === 2 ? 2 : (i === 3 ? 24 : 2), 0.06, z);
-  scene.add(mesh);
-});
-
 const swarm = createSwarm(140);
-const agentMeshes = [];
 const agentMeshesMap = new Map();
 const statusColor = { idle: 0x9ca3af, executing: 0x10b981, syncing: 0x3b82f6, error: 0xef4444 };
-
 swarmCoordinator.assignInitialRoles(swarm);
 
 swarm.forEach((m) => {
@@ -130,60 +100,71 @@ swarm.forEach((m) => {
   core.position.set(0, 1.38, 0.28);
   g.add(body, core);
   g.position.set(m.ctx.position.x, 0, m.ctx.position.z);
-  g.userData.id = m.ctx.id;
-  g.userData.type = 'agent';
-  g.userData.core = core;
-  g.userData.body = body;
+  g.userData = { id: m.ctx.id, type: 'agent', core, body };
   scene.add(g);
-  agentMeshes.push(g);
   agentMeshesMap.set(m.ctx.id, g);
   interactableMeshes.push(g);
 });
 
-// Hover Effect Integration
-interaction.onHoverChange = (id, type, isHovering) => {
-  if (type === 'agent') {
-    const mesh = agentMeshesMap.get(id);
-    if (mesh) {
-      mesh.userData.body.material.emissive.setHex(isHovering ? 0x333333 : 0x000000);
-      mesh.userData.body.material.emissiveIntensity = isHovering ? 0.4 : 0;
-    }
-  } else if (type === 'zone') {
-    const label = zoneLabels.find(l => l.userData.id === id);
-    if (label) label.material.color.setHex(isHovering ? 0xcccccc : 0xffffff);
-  }
-};
-
-function focusZone(path, zoom) {
-  const center = zoneCenters.get(path.toUpperCase());
-  if (!center) return false;
-  controls.focusTo(center, { distance: zoom ?? 34 });
-  out.textContent = `Focused ${path}`;
-  return true;
-}
-
-function runCommand(raw) {
-  const line = String(raw || '').trim();
-  if (!line) return;
-  const U = line.toUpperCase();
-  if (zoneMap.has(U)) return focusZone(U);
-  if (U.startsWith('/FOCUS ')) return focusZone(line.slice(7).trim()) || (out.textContent = 'Unknown zone');
-  if (U === '/STATUS') {
-    const c = { idle: 0, executing: 0, syncing: 0, error: 0 };
-    swarm.forEach(s => c[statusFromState(s.state)]++);
-    out.textContent = `idle:${c.idle} executing:${c.executing} syncing:${c.syncing} error:${c.error}`;
-    return;
-  }
-  out.textContent = `Unknown command: ${line}`;
-}
-
-run.addEventListener('click', () => runCommand(cmd.value));
-cmd.addEventListener('keydown', (e) => { if (e.key === 'Enter') runCommand(cmd.value); });
-window.addEventListener('keydown', (e) => {
-  if (e.key === '/' && document.activeElement !== cmd) { e.preventDefault(); cmd.focus(); }
-  if (e.key === 'Escape') { cmd.blur(); out.textContent = 'Free camera mode'; }
+// 2. Command Extensions
+registry.register('goto', 'Navigate to zone', (args) => {
+  const target = (args[0] || '').toUpperCase();
+  const center = zoneCenters.get(target);
+  if (!center) return { type: OutputType.ERROR, text: `Zone ${target} not found.` };
+  controls.focusTo(center, { distance: 34 });
+  return { type: OutputType.SYSTEM, text: `Navigating to ${target}...` };
 });
 
+registry.register('trace', 'Print last transitions for agent', (args) => {
+  const id = (args[0] || '').toUpperCase();
+  const trace = diag.getTrace(id);
+  if (trace.length === 0) return { type: OutputType.INFO, text: `No trace data for ${id}` };
+  const lines = trace.map(t => `[${new Date(t.ts).toLocaleTimeString()}] ${t.state}`).join(' -> ');
+  return { type: OutputType.AGENT, text: `${id} TRACE: ${lines}` };
+});
+
+registry.register('watch', 'Live stream agent updates', (args) => {
+  const id = (args[0] || '').toUpperCase();
+  if (diag.watchTargets.has(id)) {
+    diag.watchTargets.delete(id);
+    return { type: OutputType.SYSTEM, text: `Stopped watching ${id}` };
+  }
+  diag.watchTargets.add(id);
+  return { type: OutputType.SYSTEM, text: `Now watching ${id} [Live updates stream]` };
+});
+
+registry.register('metrics', 'System-wide metrics', () => {
+  const m = diag.getMetrics(swarm);
+  return { 
+    type: OutputType.SYSTEM, 
+    text: `SWARM:${m.swarmSize} | STRESS:${(m.avgStress * 100).toFixed(1)}% | E:${m.stateDistribution.executing} S:${m.stateDistribution.syncing} ERR:${m.stateDistribution.error}`
+  };
+});
+
+registry.register('record', 'Start/Stop recording session', (args) => {
+  if (args[0] === 'start') {
+    diag.startRecording();
+    return { type: OutputType.SYSTEM, text: 'Recording started.' };
+  }
+  const data = diag.stopRecording();
+  return { type: OutputType.SUCCESS, text: `Recording stopped. Captured ${data.length} events.` };
+});
+
+registry.register('dump', 'List agents in zone', (args) => {
+  const zoneName = (args[0] || '').toUpperCase();
+  const agentsInZone = swarm.filter(a => a.ctx.zone?.toUpperCase() === zoneName);
+  return { 
+    type: OutputType.INFO, 
+    text: `${zoneName} AGENTS: ${agentsInZone.map(a => a.ctx.id).join(', ') || 'None'}` 
+  };
+});
+
+registry.register('clear', 'Clear console', () => {
+  terminalUI.outputArea.innerHTML = '';
+  return { type: OutputType.SYSTEM, text: 'Terminal cleared.' };
+});
+
+// 3. Animation Loop
 let last = performance.now();
 function animate(now) {
   requestAnimationFrame(animate);
@@ -192,21 +173,13 @@ function animate(now) {
 
   interaction.update(now, interactableMeshes);
   
-  // High-level Swarm Coordination
   const coordEvents = swarmCoordinator.coordinate(swarm, zoneCenters, dt);
   coordEvents.forEach(ev => {
     if (ev.type === 'ROUTE_SUGGESTION') {
       const a = swarm.find(s => s.ctx.id === ev.agentId);
       if (a && (a.state === 'IDLE' || a.state === 'SEEK_TASK')) {
-        if (ev.targetZone) {
-          a.ctx.destinationZone = ev.targetZone;
-          const center = zoneCenters.get(ev.targetZone);
-          if (center) a.ctx.destination = { x: center.x + (Math.random()-0.5)*10, y: 0, z: center.z + (Math.random()-0.5)*8 };
-          a.state = 'NAVIGATE';
-        } else if (ev.targetPosition) {
-          a.ctx.destination = { ...ev.targetPosition };
-          a.state = 'NAVIGATE';
-        }
+        a.ctx.destinationZone = ev.targetZone;
+        a.state = 'NAVIGATE';
       }
     }
   });
@@ -216,12 +189,22 @@ function animate(now) {
   const zoneActivity = new Map();
 
   for (let i = 0; i < ticked.length; i++) {
-    swarm[i] = ticked[i];
-    const m = agentMeshes[i];
-    const s = swarm[i];
+    const s = ticked[i];
+    const prevMachine = swarm[i];
+    
+    // Log transitions to diag
+    if (prevMachine.state !== s.state) {
+      const update = diag.logTransition(s.ctx.id, s.state);
+      if (update) terminalUI.print(`WATCH: ${update.agentId} shifted to ${update.state}`, OutputType.AGENT);
+    }
+
+    swarm[i] = s;
+    const m = agentMeshesMap.get(s.ctx.id);
     m.position.set(s.ctx.position.x, 0, s.ctx.position.z);
+    
     const st = statusFromState(s.state);
     m.userData.core.material.color.setHex(statusColor[st]);
+    
     const isHovered = (interaction.hoveredObject === s.ctx.id);
     labels.updateLabel(s.ctx.id, m, s.ctx.id, st, isHovered);
 
@@ -232,19 +215,6 @@ function animate(now) {
       const z = s.ctx.zone.toUpperCase();
       zoneActivity.set(z, (zoneActivity.get(z) || 0) + 1);
     }
-
-    if (Math.random() < 0.002) {
-      const target = swarm[(Math.random() * swarm.length) | 0].ctx.id;
-      if (target !== s.ctx.id) {
-        const topics = ['sync','task','help','metrics'];
-        dataFlow.pushMessage({
-          from: s.ctx.id,
-          to: target,
-          topic: topics[(Math.random() * topics.length) | 0],
-          size: Math.random()
-        }, agentMeshesMap);
-      }
-    }
   }
 
   loadViz.update(dt, metrics, zoneActivity);
@@ -253,11 +223,6 @@ function animate(now) {
   renderer.render(scene, camera);
 }
 
-window.addEventListener('resize', () => {
-  renderer.setSize(innerWidth, innerHeight);
-  camera.aspect = innerWidth / innerHeight;
-  camera.updateProjectionMatrix();
-});
-
-focusZone('/AGENTS/STATUS', 34);
 animate(performance.now());
+terminalUI.print('OPENCLAW KERNEL READY.', OutputType.SYSTEM);
+terminalUI.print('Live-ops diagnostics enabled.', OutputType.INFO);
