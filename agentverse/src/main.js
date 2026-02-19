@@ -6,6 +6,7 @@ import { AgentLabelSystem } from './AgentLabelSystem.js';
 import { HoverInteractionSystem } from './HoverInteractionSystem.js';
 import { LoadVizSystem } from './LoadVizSystem.js';
 import { DataFlowVizSystem } from './DataFlowVizSystem.js';
+import { SwarmCoordinator } from './SwarmCoordinator.js';
 
 const app = document.getElementById('app');
 const out = document.getElementById('out');
@@ -61,6 +62,7 @@ const labels = new AgentLabelSystem(scene, camera);
 const interaction = new HoverInteractionSystem(renderer.domElement, camera, controls);
 const loadViz = new LoadVizSystem(scene, { baseColor: new THREE.Color(0x8f8f8f) });
 const dataFlow = new DataFlowVizSystem(scene, { maxLinks: 80 });
+const swarmCoordinator = new SwarmCoordinator();
 
 function textCanvas(text, w = 720, h = 130, bg = '#101010', fg = '#fff', font = 'bold 56px monospace') {
   const c = document.createElement('canvas'); c.width = w; c.height = h;
@@ -117,6 +119,8 @@ const swarm = createSwarm(140);
 const agentMeshes = [];
 const agentMeshesMap = new Map();
 const statusColor = { idle: 0x9ca3af, executing: 0x10b981, syncing: 0x3b82f6, error: 0xef4444 };
+
+swarmCoordinator.assignInitialRoles(swarm);
 
 swarm.forEach((m) => {
   const g = new THREE.Group();
@@ -187,6 +191,26 @@ function animate(now) {
   last = now;
 
   interaction.update(now, interactableMeshes);
+  
+  // High-level Swarm Coordination
+  const coordEvents = swarmCoordinator.coordinate(swarm, zoneCenters, dt);
+  coordEvents.forEach(ev => {
+    if (ev.type === 'ROUTE_SUGGESTION') {
+      const a = swarm.find(s => s.ctx.id === ev.agentId);
+      if (a && (a.state === 'IDLE' || a.state === 'SEEK_TASK')) {
+        if (ev.targetZone) {
+          a.ctx.destinationZone = ev.targetZone;
+          const center = zoneCenters.get(ev.targetZone);
+          if (center) a.ctx.destination = { x: center.x + (Math.random()-0.5)*10, y: 0, z: center.z + (Math.random()-0.5)*8 };
+          a.state = 'NAVIGATE';
+        } else if (ev.targetPosition) {
+          a.ctx.destination = { ...ev.targetPosition };
+          a.state = 'NAVIGATE';
+        }
+      }
+    }
+  });
+
   const ticked = tickAgents(swarm, Date.now(), dt, zoneCenters);
   const metrics = { avgStress: 0, execRatio: 0, errorRatio: 0 };
   const zoneActivity = new Map();
@@ -209,7 +233,6 @@ function animate(now) {
       zoneActivity.set(z, (zoneActivity.get(z) || 0) + 1);
     }
 
-    // Occasional simulated messaging for traffic effect
     if (Math.random() < 0.002) {
       const target = swarm[(Math.random() * swarm.length) | 0].ctx.id;
       if (target !== s.ctx.id) {
