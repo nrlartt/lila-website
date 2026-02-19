@@ -4,6 +4,7 @@ import { createSwarm, tickAgents } from './sim_loop.js';
 import { statusFromState } from './agent_fsm.js';
 import { AgentLabelSystem } from './AgentLabelSystem.js';
 import { HoverInteractionSystem } from './HoverInteractionSystem.js';
+import { LoadVizSystem } from './LoadVizSystem.js';
 
 const app = document.getElementById('app');
 const out = document.getElementById('out');
@@ -36,9 +37,7 @@ const key = new THREE.DirectionalLight(0xffffff, 0.45);
 key.position.set(40, 90, 20);
 scene.add(key);
 
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(1800, 1800), new THREE.MeshLambertMaterial({ color: 0x949494 }));
-ground.rotation.x = -Math.PI / 2;
-scene.add(ground);
+// Grid helpers stay for visual depth, but LoadViz will add the pulsing floor
 scene.add(new THREE.GridHelper(640, 128, 0x838383, 0x8f8f8f));
 
 const zoneMap = new Map();
@@ -60,6 +59,7 @@ const controls = new HubControls({
 
 const labels = new AgentLabelSystem(scene, camera);
 const interaction = new HoverInteractionSystem(renderer.domElement, camera, controls);
+const loadViz = new LoadVizSystem(scene, { baseColor: new THREE.Color(0x8f8f8f) });
 
 function textCanvas(text, w = 720, h = 130, bg = '#101010', fg = '#fff', font = 'bold 56px monospace') {
   const c = document.createElement('canvas'); c.width = w; c.height = h;
@@ -105,6 +105,8 @@ function addZone(path, x, z) {
   zoneCenters.set(path.toUpperCase(), new THREE.Vector3(x, 0, z));
   zoneLabels.push(label);
   interactableMeshes.push(g);
+  
+  loadViz.registerZone(path.toUpperCase(), g);
 }
 
 ZONES.forEach((z, i) => addZone(z, layout[i][0], layout[i][1]));
@@ -214,6 +216,11 @@ function animate(now) {
   interaction.update(now, interactableMeshes);
 
   const ticked = tickAgents(swarm, Date.now(), dt, zoneCenters);
+  
+  // Collect Metrics for Viz
+  const metrics = { avgStress: 0, execRatio: 0, errorRatio: 0 };
+  const zoneActivity = new Map();
+
   for (let i = 0; i < ticked.length; i++) {
     swarm[i] = ticked[i];
     const m = agentMeshes[i];
@@ -225,8 +232,19 @@ function animate(now) {
 
     const isHovered = (interaction.hoveredObject === s.ctx.id);
     labels.updateLabel(s.ctx.id, m, s.ctx.id, st, isHovered);
+
+    // Accumulate Metrics
+    metrics.avgStress += s.ctx.stress / swarm.length;
+    if (st === 'executing') metrics.execRatio += 1 / swarm.length;
+    if (st === 'error') metrics.errorRatio += 1 / swarm.length;
+    
+    if (s.ctx.zone) {
+      const z = s.ctx.zone.toUpperCase();
+      zoneActivity.set(z, (zoneActivity.get(z) || 0) + 1);
+    }
   }
 
+  loadViz.update(dt, metrics, zoneActivity);
   controls.update(dt);
   renderer.render(scene, camera);
 }
