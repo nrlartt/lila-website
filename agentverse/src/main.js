@@ -5,6 +5,7 @@ import { statusFromState } from './agent_fsm.js';
 import { AgentLabelSystem } from './AgentLabelSystem.js';
 import { HoverInteractionSystem } from './HoverInteractionSystem.js';
 import { LoadVizSystem } from './LoadVizSystem.js';
+import { DataFlowVizSystem } from './DataFlowVizSystem.js';
 
 const app = document.getElementById('app');
 const out = document.getElementById('out');
@@ -37,7 +38,6 @@ const key = new THREE.DirectionalLight(0xffffff, 0.45);
 key.position.set(40, 90, 20);
 scene.add(key);
 
-// Grid helpers stay for visual depth, but LoadViz will add the pulsing floor
 scene.add(new THREE.GridHelper(640, 128, 0x838383, 0x8f8f8f));
 
 const zoneMap = new Map();
@@ -60,6 +60,7 @@ const controls = new HubControls({
 const labels = new AgentLabelSystem(scene, camera);
 const interaction = new HoverInteractionSystem(renderer.domElement, camera, controls);
 const loadViz = new LoadVizSystem(scene, { baseColor: new THREE.Color(0x8f8f8f) });
+const dataFlow = new DataFlowVizSystem(scene, { maxLinks: 80 });
 
 function textCanvas(text, w = 720, h = 130, bg = '#101010', fg = '#fff', font = 'bold 56px monospace') {
   const c = document.createElement('canvas'); c.width = w; c.height = h;
@@ -82,30 +83,24 @@ function zoneLabel(path) {
 function addZone(path, x, z) {
   const g = new THREE.Group();
   g.position.set(x, 0, z);
-
   const floor = new THREE.Mesh(new THREE.BoxGeometry(30, 0.24, 22), new THREE.MeshLambertMaterial({ color: 0xd8d8d8 }));
   floor.position.y = 0.12;
   g.add(floor);
-
   const wallMat = new THREE.MeshLambertMaterial({ color: 0xe3e3e3 });
   const left = new THREE.Mesh(new THREE.BoxGeometry(1, 4, 22), wallMat); left.position.set(-15, 2, 0);
   const right = left.clone(); right.position.x = 15;
   const back = new THREE.Mesh(new THREE.BoxGeometry(30, 4, 1), wallMat); back.position.set(0, 2, -11);
   g.add(left, right, back);
-
   const label = zoneLabel(path);
   label.position.set(0, 5.9, -9.5);
   g.add(label);
-
   g.userData.id = path;
   g.userData.type = 'zone';
-
   scene.add(g);
   zoneMap.set(path.toUpperCase(), label);
   zoneCenters.set(path.toUpperCase(), new THREE.Vector3(x, 0, z));
   zoneLabels.push(label);
   interactableMeshes.push(g);
-  
   loadViz.registerZone(path.toUpperCase(), g);
 }
 
@@ -120,6 +115,7 @@ const cMat = new THREE.MeshLambertMaterial({ color: 0x888888 });
 
 const swarm = createSwarm(140);
 const agentMeshes = [];
+const agentMeshesMap = new Map();
 const statusColor = { idle: 0x9ca3af, executing: 0x10b981, syncing: 0x3b82f6, error: 0xef4444 };
 
 swarm.forEach((m) => {
@@ -130,30 +126,27 @@ swarm.forEach((m) => {
   core.position.set(0, 1.38, 0.28);
   g.add(body, core);
   g.position.set(m.ctx.position.x, 0, m.ctx.position.z);
-  
   g.userData.id = m.ctx.id;
   g.userData.type = 'agent';
   g.userData.core = core;
   g.userData.body = body;
-
   scene.add(g);
   agentMeshes.push(g);
+  agentMeshesMap.set(m.ctx.id, g);
   interactableMeshes.push(g);
 });
 
 // Hover Effect Integration
 interaction.onHoverChange = (id, type, isHovering) => {
   if (type === 'agent') {
-    const mesh = agentMeshes.find(m => m.userData.id === id);
+    const mesh = agentMeshesMap.get(id);
     if (mesh) {
       mesh.userData.body.material.emissive.setHex(isHovering ? 0x333333 : 0x000000);
       mesh.userData.body.material.emissiveIntensity = isHovering ? 0.4 : 0;
     }
   } else if (type === 'zone') {
     const label = zoneLabels.find(l => l.userData.id === id);
-    if (label) {
-      label.material.color.setHex(isHovering ? 0xcccccc : 0xffffff);
-    }
+    if (label) label.material.color.setHex(isHovering ? 0xcccccc : 0xffffff);
   }
 };
 
@@ -169,20 +162,8 @@ function runCommand(raw) {
   const line = String(raw || '').trim();
   if (!line) return;
   const U = line.toUpperCase();
-
   if (zoneMap.has(U)) return focusZone(U);
   if (U.startsWith('/FOCUS ')) return focusZone(line.slice(7).trim()) || (out.textContent = 'Unknown zone');
-  if (U.startsWith('/TASK ')) {
-    const parts = line.split(/\s+/);
-    if (parts.length < 3) return (out.textContent = 'Usage: /TASK CLAW-014 optimize-path');
-    const id = parts[1].toUpperCase();
-    const task = parts.slice(2).join(' ');
-    const a = swarm.find(s => s.ctx.id === id);
-    if (!a) return (out.textContent = `Unknown agent: ${id}`);
-    a.ctx.task = { id: `manual-${Date.now()}`, type: 'OPTIMIZE', targetZone: '/TASK/ASSIGN', ttlMs: 12000, payload: { text: task } };
-    out.textContent = `${id} assigned: ${task}`;
-    return;
-  }
   if (U === '/STATUS') {
     const c = { idle: 0, executing: 0, syncing: 0, error: 0 };
     swarm.forEach(s => c[statusFromState(s.state)]++);
@@ -194,17 +175,9 @@ function runCommand(raw) {
 
 run.addEventListener('click', () => runCommand(cmd.value));
 cmd.addEventListener('keydown', (e) => { if (e.key === 'Enter') runCommand(cmd.value); });
-
 window.addEventListener('keydown', (e) => {
-  if (e.key === '/' && document.activeElement !== cmd) {
-    e.preventDefault();
-    cmd.focus();
-    cmd.setSelectionRange(cmd.value.length, cmd.value.length);
-  }
-  if (e.key === 'Escape') {
-    cmd.blur();
-    out.textContent = 'Free camera mode';
-  }
+  if (e.key === '/' && document.activeElement !== cmd) { e.preventDefault(); cmd.focus(); }
+  if (e.key === 'Escape') { cmd.blur(); out.textContent = 'Free camera mode'; }
 });
 
 let last = performance.now();
@@ -214,10 +187,7 @@ function animate(now) {
   last = now;
 
   interaction.update(now, interactableMeshes);
-
   const ticked = tickAgents(swarm, Date.now(), dt, zoneCenters);
-  
-  // Collect Metrics for Viz
   const metrics = { avgStress: 0, execRatio: 0, errorRatio: 0 };
   const zoneActivity = new Map();
 
@@ -226,25 +196,36 @@ function animate(now) {
     const m = agentMeshes[i];
     const s = swarm[i];
     m.position.set(s.ctx.position.x, 0, s.ctx.position.z);
-
     const st = statusFromState(s.state);
     m.userData.core.material.color.setHex(statusColor[st]);
-
     const isHovered = (interaction.hoveredObject === s.ctx.id);
     labels.updateLabel(s.ctx.id, m, s.ctx.id, st, isHovered);
 
-    // Accumulate Metrics
     metrics.avgStress += s.ctx.stress / swarm.length;
     if (st === 'executing') metrics.execRatio += 1 / swarm.length;
     if (st === 'error') metrics.errorRatio += 1 / swarm.length;
-    
     if (s.ctx.zone) {
       const z = s.ctx.zone.toUpperCase();
       zoneActivity.set(z, (zoneActivity.get(z) || 0) + 1);
     }
+
+    // Occasional simulated messaging for traffic effect
+    if (Math.random() < 0.002) {
+      const target = swarm[(Math.random() * swarm.length) | 0].ctx.id;
+      if (target !== s.ctx.id) {
+        const topics = ['sync','task','help','metrics'];
+        dataFlow.pushMessage({
+          from: s.ctx.id,
+          to: target,
+          topic: topics[(Math.random() * topics.length) | 0],
+          size: Math.random()
+        }, agentMeshesMap);
+      }
+    }
   }
 
   loadViz.update(dt, metrics, zoneActivity);
+  dataFlow.update(dt, agentMeshesMap);
   controls.update(dt);
   renderer.render(scene, camera);
 }
