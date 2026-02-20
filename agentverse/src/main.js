@@ -78,16 +78,34 @@ swarm.forEach(a => {
 });
 
 // 4. Command Interface
-registry.register('focus', 'Focus camera', (args) => {
+registry.register('help', 'List all commands', () => {
+  const cmds = registry.list().map(c => `/${c.name} - ${c.description}`).join('\n');
+  return { type: OutputType.SYSTEM, text: `Available commands:\n${cmds}` };
+});
+
+registry.register('focus', 'Focus camera on zone or agent', (args) => {
   const target = (args[0] || '').toUpperCase();
   const center = zoneCenters.get(target);
-  if (center) controls.focusTo(center);
-  return { type: OutputType.SYSTEM, text: `Focusing ${target}` };
+  if (center) {
+    controls.focusTo(center);
+    return { type: OutputType.SYSTEM, text: `Focusing zone ${target}` };
+  }
+  const agentMesh = meshMap.get(target);
+  if (agentMesh) {
+    controls.focusTo(agentMesh.position);
+    return { type: OutputType.SYSTEM, text: `Focusing agent ${target}` };
+  }
+  return { type: OutputType.ERROR, text: `Target ${target} not found.` };
 });
 
 registry.register('metrics', 'Show system metrics', () => {
   const s = metrics.getSnapshot();
   return { type: OutputType.SUCCESS, text: `E:${s.executingCount} S:${s.syncingCount} ERR:${s.errorCount} STRESS:${(s.avgStress*100).toFixed(1)}%` };
+});
+
+registry.register('clear', 'Clear terminal output', () => {
+  termUI.outputArea.innerHTML = '';
+  return { type: OutputType.SYSTEM, text: 'Terminal cleared.' };
 });
 
 bus.on('ROUTE_SUGGESTION', ev => {
@@ -115,14 +133,16 @@ function animate(now) {
   ticked.forEach((s, i) => {
     swarm[i] = s;
     const m = meshMap.get(s.ctx.id);
-    m.position.set(s.ctx.position.x, 0, s.ctx.position.z);
-    const st = statusFromState(s.state);
-    m.userData.core.material.color.setHex({idle:0x9ca3af, executing:0x10b981, syncing:0x3b82f6, error:0xef4444}[st]);
-    labels.updateLabel(s.ctx.id, m, s.ctx.id, st, interaction.hoveredObject === s.ctx.id);
-    
-    if (Math.random() < 0.002) {
-      const target = swarm[Math.floor(Math.random()*swarm.length)].ctx.id;
-      if (target !== s.ctx.id) dataFlow.pushMessage({ fromId: s.ctx.id, toId: target, topic: 'sync' }, meshMap);
+    if (m) {
+      m.position.set(s.ctx.position.x, 0, s.ctx.position.z);
+      const st = statusFromState(s.state);
+      m.userData.core.material.color.setHex({idle:0x9ca3af, executing:0x10b981, syncing:0x3b82f6, error:0xef4444}[st]);
+      labels.updateLabel(s.ctx.id, m, s.ctx.id, st, interaction.hoveredObject === s.ctx.id);
+      
+      if (Math.random() < 0.002) {
+        const target = swarm[Math.floor(Math.random()*swarm.length)].ctx.id;
+        if (target !== s.ctx.id) dataFlow.pushMessage({ fromId: s.ctx.id, toId: target, topic: 'sync' }, meshMap);
+      }
     }
   });
 
@@ -131,4 +151,5 @@ function animate(now) {
 }
 
 animate(performance.now());
-termUI.print('OPENCLAW KERNEL v2.0.0-PRO', OutputType.SYSTEM);
+termUI.print('OPENCLAW KERNEL v2.1.0-PRO ONLINE', OutputType.SUCCESS);
+termUI.print('System integrity check complete.', OutputType.SYSTEM);

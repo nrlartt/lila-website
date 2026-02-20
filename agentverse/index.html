@@ -5,33 +5,101 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>OpenClaw Agent Hub</title>
   <style>
-    :root { --panel: rgba(14,14,14,.86); --text:#ededed; --muted:#b9b9b9; }
-    html, body { margin:0; height:100%; overflow:hidden; background:#8f8f8f; font-family: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace; }
-    #app { position: fixed; inset: 0; }
-    #terminal {
-      position: fixed; top: 10px; left: 10px; width: 390px; z-index: 20;
-      background: var(--panel); border: 1px solid #373737; border-radius: 10px;
-      padding: 10px; color: var(--text); backdrop-filter: blur(2px);
+    :root { 
+      --bg: #8f8f8f;
+      --panel: rgba(10, 10, 10, 0.92); 
+      --text: #f0f0f0; 
+      --muted: #a0a0a0;
+      --accent: #3b82f6;
+      --border: #333333;
     }
-    #termTitle { font-size: 12px; letter-spacing: .08em; font-weight: 700; }
-    #termMeta { margin-top: 4px; color: var(--muted); font-size: 11px; }
-    #cmdRow { display: flex; gap: 8px; margin-top: 8px; }
-    #cmd { flex: 1; background: #0e0e0e; border: 1px solid #3c3c3c; color: #f2f2f2; border-radius: 7px; padding: 8px; font-size: 12px; }
-    #run { background: #161616; border: 1px solid #454545; color: #f2f2f2; border-radius: 7px; padding: 8px 11px; cursor: pointer; font-size: 12px; }
-    #out { margin-top: 8px; font-size: 11px; color: #d3d3d3; min-height: 14px; }
+    html, body { 
+      margin: 0; padding: 0; width: 100%; height: 100%; 
+      overflow: hidden; background: var(--bg);
+      font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+    }
+    #app { position: fixed; inset: 0; z-index: 1; }
+    
+    /* Terminal Container Styling */
+    #terminal-container {
+      position: fixed;
+      top: 15px;
+      left: 15px;
+      width: 420px;
+      max-height: 85vh;
+      z-index: 100;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 15px;
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      backdrop-filter: blur(8px);
+    }
+
+    /* Terminal UI Internal Elements */
+    .term-output {
+      flex: 1;
+      overflow-y: auto;
+      font-size: 11px;
+      line-height: 1.5;
+      margin-bottom: 12px;
+      max-height: 300px;
+      scrollbar-width: thin;
+      scrollbar-color: #444 transparent;
+    }
+    .term-output::-webkit-scrollbar { width: 4px; }
+    .term-output::-webkit-scrollbar-thumb { background: #444; border-radius: 2px; }
+
+    .term-line { margin-bottom: 4px; border-left: 2px solid transparent; padding-left: 6px; }
+    .term-line.system { border-color: #a855f7; color: #d8b4fe; }
+    .term-line.agent { border-color: #0ea5e9; color: #7dd3fc; }
+    .term-line.error { border-color: #ef4444; color: #fca5a5; }
+    .term-line.info { border-color: #71717a; color: #d4d4d8; }
+    .term-line.success { border-color: #22c55e; color: #86efac; }
+
+    .term-input-row {
+      display: flex;
+      align-items: center;
+      background: rgba(0,0,0,0.4);
+      border: 1px solid #333;
+      border-radius: 6px;
+      padding: 5px 10px;
+    }
+    .term-prompt { color: var(--accent); font-weight: bold; margin-right: 8px; font-size: 13px; }
+    .term-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: white;
+      font-family: inherit;
+      font-size: 13px;
+      outline: none;
+    }
+    
+    .term-meta {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 10px;
+      border-top: 1px solid #222;
+      padding-top: 8px;
+      display: flex;
+      justify-content: space-between;
+    }
   </style>
 </head>
 <body>
   <div id="app"></div>
-  <div id="terminal">
-    <div id="termTitle">OPENCLAW AGENT HUB</div>
-    <div id="termMeta">LMB drag pan • wheel zoom • RMB drag rotate • / focus input • ESC blur</div>
-    <div id="cmdRow">
-      <input id="cmd" placeholder="/FOCUS /TASK/ASSIGN or /TASK CLAW-014 optimize-path" />
-      <button id="run">RUN</button>
+  
+  <div id="terminal-container">
+    <div style="font-size: 12px; font-weight: bold; margin-bottom: 10px; letter-spacing: 1px; color: #fff;">
+      OPENCLAW KERNEL v2.1
     </div>
-    <div id="out">Booted. Distributed cognition online.</div>
+    <!-- TerminalUI class will inject its elements here if empty, but we can provide placeholders -->
   </div>
+
   <script type="module" src="./src/main.js"></script>
 </body>
 </html>
