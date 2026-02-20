@@ -6,7 +6,7 @@ import { AgentLabelSystem } from './AgentLabelSystem.js';
 import { HoverInteractionSystem } from './HoverInteractionSystem.js';
 import { TerminalCore, CommandRegistry, OutputType } from './TerminalCore.js';
 import { TerminalUI } from './TerminalUI.js';
-import { EventBus, MetricsStore } from './CoreSystems.js';
+import { EventBus, MetricsStore } from './SystemsCore.js';
 import { LoadVizSystem } from './LoadVizSystem.js';
 import { DataFlowVizSystem } from './DataFlowVizSystem.js';
 import { SwarmCoordinator } from './SwarmCoordinator.js';
