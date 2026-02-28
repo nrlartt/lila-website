@@ -1,22 +1,28 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LILA — Neural Terminal v4.0</title>
-    <meta name="description" content="Lila AI Agent Terminal — Direct neural interface to the autonomous growth protocol. Execute commands, access intelligence, and interact with OpenClaw AI.">
+    <meta name="description"
+        content="Lila Neural Terminal — Direct interface to Lila AI Agent #2774 on Virtuals Protocol. Connect via OpenClaw Gateway for real-time crypto intelligence, market analysis, and autonomous growth operations.">
     <meta name="keywords" content="Lila, AI Agent, Terminal, OpenClaw, Autonomous, Neural, Growth Protocol">
     <meta name="theme-color" content="#0a0a0f">
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='80'>⚡</text></svg>">
+    <link rel="icon" type="image/svg+xml"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='80'>⚡</text></svg>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <!-- Scanline overlay -->
     <div id="scanline-overlay"></div>
-    
+
     <!-- CRT flicker -->
     <div id="crt-flicker"></div>
 
@@ -53,16 +59,17 @@
                 <span id="prompt-separator">:</span>
                 <span id="prompt-path">~</span>
                 <span id="prompt-symbol">$</span>
-                <input type="text" id="terminal-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" autofocus>
+                <input type="text" id="terminal-input" autocomplete="off" autocorrect="off" autocapitalize="off"
+                    spellcheck="false" autofocus>
             </div>
         </main>
 
         <!-- Bottom Status Bar -->
         <footer id="terminal-footer">
             <div id="footer-left">
-                <span class="footer-item" id="agent-status">⚡ OPENCLAW ACTIVE</span>
+                <span class="footer-item" id="agent-status">◇ STANDBY</span>
                 <span class="footer-divider">│</span>
-                <span class="footer-item" id="model-info">MODEL: NEURAL-4.0</span>
+                <span class="footer-item" id="model-info">ACP #2774 • OpenClaw</span>
             </div>
             <div id="footer-right">
                 <span class="footer-item" id="network-status">BASE ◆</span>
@@ -77,4 +84,5 @@
     <!-- Audio for key sounds (optional, subtle) -->
     <script src="terminal.js"></script>
 </body>
+
 </html>
