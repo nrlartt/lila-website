@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LILA — Neural Terminal v4.0</title>
+    <meta name="description" content="Lila AI Agent Terminal — Direct neural interface to the autonomous growth protocol. Execute commands, access intelligence, and interact with OpenClaw AI.">
+    <meta name="keywords" content="Lila, AI Agent, Terminal, OpenClaw, Autonomous, Neural, Growth Protocol">
+    <meta name="theme-color" content="#0a0a0f">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='80'>⚡</text></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Scanline overlay -->
+    <div id="scanline-overlay"></div>
+    
+    <!-- CRT flicker -->
+    <div id="crt-flicker"></div>
+
+    <!-- Main Terminal Container -->
+    <div id="terminal-container">
+        <!-- Top Bar -->
+        <header id="terminal-header">
+            <div id="header-left">
+                <span class="dot red"></span>
+                <span class="dot yellow"></span>
+                <span class="dot green"></span>
+                <span id="terminal-title">LILA NEURAL TERMINAL v4.0</span>
+            </div>
+            <div id="header-center">
+                <span id="connection-status">
+                    <span class="pulse-dot"></span>
+                    <span id="status-text">CONNECTED</span>
+                </span>
+            </div>
+            <div id="header-right">
+                <span id="system-clock"></span>
+                <span id="session-id"></span>
+            </div>
+        </header>
+
+        <!-- Terminal Body -->
+        <main id="terminal-body">
+            <!-- Output Area -->
+            <div id="terminal-output"></div>
+
+            <!-- Input Line -->
+            <div id="input-line">
+                <span id="prompt-prefix">lila@neural</span>
+                <span id="prompt-separator">:</span>
+                <span id="prompt-path">~</span>
+                <span id="prompt-symbol">$</span>
+                <input type="text" id="terminal-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" autofocus>
+            </div>
+        </main>
+
+        <!-- Bottom Status Bar -->
+        <footer id="terminal-footer">
+            <div id="footer-left">
+                <span class="footer-item" id="agent-status">⚡ OPENCLAW ACTIVE</span>
+                <span class="footer-divider">│</span>
+                <span class="footer-item" id="model-info">MODEL: NEURAL-4.0</span>
+            </div>
+            <div id="footer-right">
+                <span class="footer-item" id="network-status">BASE ◆</span>
+                <span class="footer-divider">│</span>
+                <span class="footer-item" id="latency">LATENCY: <span id="latency-value">12ms</span></span>
+                <span class="footer-divider">│</span>
+                <span class="footer-item">TYPE <kbd>help</kbd> FOR COMMANDS</span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Audio for key sounds (optional, subtle) -->
+    <script src="terminal.js"></script>
+</body>
+</html>
