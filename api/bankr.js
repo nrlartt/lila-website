@@ -1,12 +1,12 @@
 export default async function handler(req, res) {
-    // Sadece POST isteklerine izin ver
+    // Allow only POST requests
     if (req.method !== 'POST') {
         return res.status(405).json({ success: false, error: 'Method not allowed' });
     }
 
     const { endpoint, method = 'GET', body } = req.body;
 
-    // Sunucu tarafındaki güvenli API Key'ler (kullanıcılar göremez)
+    // Server-side secure API Keys (hidden from users)
     const API_KEY = process.env.BANKR_API_KEY;
     const PARTNER_KEY = process.env.BANKR_PARTNER_KEY;
 
@@ -17,16 +17,16 @@ export default async function handler(req, res) {
         });
     }
 
-    // İstek yapılacak tam URL
+    // Target URL
     const url = 'https://api.bankr.bot' + endpoint;
 
-    // Header ayarlamaları (Gerçek şifreyi burada ekliyoruz!)
+    // Header configuration (Adding the real secret here!)
     const headers = {
         'X-API-Key': API_KEY,
         'Content-Type': 'application/json'
     };
 
-    // Launch token için gerekliyse partner key'i ekle
+    // Include partner key if necessary for token launch
     if (PARTNER_KEY) {
         headers['X-Partner-Key'] = PARTNER_KEY;
     }
@@ -40,7 +40,7 @@ export default async function handler(req, res) {
 
         const data = await response.json();
 
-        // CORS (İsteğe bağlı - eğer başka domainden de erişilecekse)
+        // CORS (Optional - if accessed from other domains)
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Access-Control-Allow-Methods', 'POST');
 

@@ -23,11 +23,11 @@
         bankrPartnerKey: '',
 
         // --- GLOBAL API KEY SYSTEM ---
-        // Bu anahtar şifrelenmiştir ve kullanıcıların kodu inceleyip doğrudan kopyalamasını engeller (obfuscation).
-        // Terminal kullanıcıları vault'ta kendi Key'lerini girmediyse bile bu key devreye girer.
-        // DİKKAT: Github Pages gibi statik sitelerde %100 güvenlik imkansızdır, bu yöntem sadece basit taramaları engeller!
-        publicObfuscatedKey: 'U2FsdGVkX19DdW1teQ==', // Buraya şifreli key'inizi yapıştıracaksınız (aşağıdaki "encrypt_tool" komutuna bakın)
-        publicObfuscatedPartnerKey: '', // Gerekirse partner key için
+        // This key is obfuscated to prevent direct copying by users inspecting the code.
+        // If users haven't configured their own keys in the vault, this key will be used as a fallback.
+        // WARNING: 100% security is impossible on static sites like Github Pages, this only prevents basic scraping!
+        publicObfuscatedKey: 'U2FsdGVkX19DdW1teQ==', // Paste your obfuscated key here (see the "encrypt" tool below)
+        publicObfuscatedPartnerKey: '', // Partner key if applicable
     };
 
     // ===== STATE =====
@@ -847,7 +847,7 @@
 
     // ===== BANKR API HELPERS =====
 
-    // Basit bir obfuscation/deobfuscation (statik siteler için)
+    // Basic obfuscation/deobfuscation (for static sites)
     function deobfuscateKey(obfuscatedStr) {
         if (!obfuscatedStr || obfuscatedStr === 'U2FsdGVkX19DdW1teQ==') return null;
         try {
@@ -855,7 +855,7 @@
         } catch (e) { return null; }
     }
 
-    // Geliştirici aracı: Kendi api_key'inizi terminale yazarak şifreleyin
+    // Developer tool: Obfuscate your API key via terminal
     async function cmdEncryptKey(args) {
         addBlank();
         if (!args || !args.trim()) {
@@ -876,9 +876,9 @@
     }
 
     async function bankrRequest(method, path, body) {
-        // Öncelik 1: Kullanıcının kendi Vault'ta girdiği API Key var mı?
+        // Priority 1: Did the user enter their own API Key in the Vault?
         let apiKey = CONFIG.bankrApiKey;
-        // Öncelik 2: Public olarak şifreli kaydedilmiş (obfuscated) API Key var mı?
+        // Priority 2: Is there a publicly saved (obfuscated) API Key?
         if (!apiKey) apiKey = deobfuscateKey(CONFIG.publicObfuscatedKey);
 
         if (!apiKey) {
