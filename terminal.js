@@ -982,19 +982,44 @@
         const match = args.match(/"([^"]+)"\s+(\S+)(?:\s+(\S+))?/) || args.match(/(\S+)\s+(\S+)(?:\s+(\S+))?/);
         if (!match) { addLine('  [ERR] Could not parse. Use: launch "Name" SYMBOL [chain]', 'error'); addBlank(); return; }
         const name = match[1], symbol = match[2], chain = (match[3] || 'base').toLowerCase();
+
+        if (!state.walletAddress) {
+            addLine('  [ERR] Web3 wallet not connected. You need to connect a wallet to receive fees.', 'error');
+            addLine('  Use: wallet connect', 'system');
+            addBlank(); return;
+        }
+
         addLine(`  [BANKR] Launching token: ${name} ($${symbol}) on ${chain}...`, 'info');
         await showThinking(1500);
+
+        const payload = {
+            tokenName: name,
+            tokenSymbol: symbol,
+            description: `Token launched via Lila Neural Terminal on ${chain}`,
+            image: "https://lilagent.xyz/lila-logo.png",
+            feeRecipient: {
+                type: "wallet",
+                value: state.walletAddress
+            },
+            simulateOnly: false
+        };
+
         try {
-            const res = await fetch(CONFIG.bankrApiUrl + '/partner/deploy', {
+            const res = await fetch(CONFIG.bankrApiUrl + '/token-launches/deploy', {
                 method: 'POST',
                 headers: { 'X-Partner-Key': pKey, 'X-API-Key': aKey, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, symbol, chain, wallet: state.walletAddress || undefined }),
+                body: JSON.stringify(payload),
             });
             const data = await res.json();
             if (data.success) {
                 addLine('  ▸ Token launched successfully!', 'success');
-                if (data.address) addLine(`  Contract: <span style="color:var(--green-bright)">${data.address}</span>`);
-                if (data.url) addLine(`  View: <a href="${data.url}" target="_blank">${data.url}</a>`, 'info');
+                if (data.tokenAddress) addLine(`  Contract: <span style="color:var(--green-bright)">${data.tokenAddress}</span>`);
+                if (data.chain) addLine(`  Chain:    <span style="color:var(--cyan-bright)">${data.chain}</span>`);
+
+                // Add fee distribution display if present
+                if (data.feeDistribution) {
+                    addLine(`  Fees: Creator share routed to your wallet.`, 'info');
+                }
             } else {
                 addLine('  [ERR] Launch failed: ' + (data.message || data.error || 'Unknown'), 'error');
             }
