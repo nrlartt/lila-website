@@ -15,13 +15,12 @@
 
     // ===== CONFIGURATION =====
     const CONFIG = {
-        gatewayUrl: localStorage.getItem('lila_gateway_url') || '',
-        gatewayToken: localStorage.getItem('lila_gateway_token') || '',
+        gatewayUrl: '',
+        gatewayToken: '',
         protocolVersion: 3,
-        // Bankr Partner API
         bankrApiUrl: 'https://api.bankr.bot',
-        bankrApiKey: localStorage.getItem('lila_bankr_key') || '',
-        bankrPartnerKey: localStorage.getItem('lila_bankr_partner_key') || '',
+        bankrApiKey: '',
+        bankrPartnerKey: '',
     };
 
     // ===== STATE =====
@@ -90,6 +89,7 @@
         buy: { description: 'Acquire $LILA token', execute: cmdBuy },
         socials: { description: 'Social channels & community', execute: cmdSocials },
         config: { description: 'View/set Gateway & API configuration', execute: cmdConfig },
+        vault: { description: 'Open secure API key vault (🔐)', execute: cmdVault },
         // Web3 Wallet
         wallet: { description: 'Connect/disconnect Web3 wallet (MetaMask)', execute: cmdWallet },
         // Bankr API
@@ -468,6 +468,7 @@
         const categories = {
             'AGENT INTERACTION': ['ask', 'connect', 'disconnect', 'status', 'history', 'config'],
             'WEB3 & DEFI': ['wallet', 'swap', 'price', 'balances', 'launch'],
+            'SECURITY': ['vault'],
             'PROTOCOL': ['about', 'services', 'token', 'hire', 'buy'],
             'COMMUNITY': ['socials'],
             'SYSTEM': ['help', 'clear', 'neofetch', 'whoami', 'uptime', 'ping', 'echo', 'date', 'ascii', 'matrix', 'reboot'],
@@ -769,12 +770,10 @@
         } else if (parts[0] === 'set' && parts[1] === 'token' && parts[2]) {
             CONFIG.gatewayToken = parts[2]; localStorage.setItem('lila_gateway_token', parts[2]);
             addLine('  ▸ Gateway token saved.', 'success');
-        } else if (parts[0] === 'set' && parts[1] === 'bankr-key' && parts[2]) {
-            CONFIG.bankrApiKey = parts[2]; localStorage.setItem('lila_bankr_key', parts[2]);
-            addLine('  ▸ Bankr API key saved.', 'success');
-        } else if (parts[0] === 'set' && parts[1] === 'partner-key' && parts[2]) {
-            CONFIG.bankrPartnerKey = parts[2]; localStorage.setItem('lila_bankr_partner_key', parts[2]);
-            addLine('  ▸ Bankr Partner key saved.', 'success');
+        } else if (parts[0] === 'set' && (parts[1] === 'bankr-key' || parts[1] === 'partner-key')) {
+            addLine('  ⚠ API keys should be stored securely. Use "vault" command instead.', 'warning');
+            addLine('  Opening Secure Vault...', 'info');
+            openVaultUI();
         } else if (parts[0] === 'clear') {
             ['lila_gateway_url', 'lila_gateway_token', 'lila_bankr_key', 'lila_bankr_partner_key'].forEach(k => localStorage.removeItem(k));
             CONFIG.gatewayUrl = ''; CONFIG.gatewayToken = ''; CONFIG.bankrApiKey = ''; CONFIG.bankrPartnerKey = '';
@@ -1243,7 +1242,169 @@
         }
     });
 
+    // ===== SECURE VAULT — ENCRYPTION =====
+
+    const VAULT_SALT = 'lila-neural-vault-v4';
+
+    function getDeviceFingerprint() {
+        const parts = [navigator.userAgent, navigator.language, screen.width, screen.height, new Date().getTimezoneOffset()];
+        return parts.join('|');
+    }
+
+    async function deriveKey(passphrase) {
+        const enc = new TextEncoder();
+        const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(passphrase), 'PBKDF2', false, ['deriveKey']);
+        return crypto.subtle.deriveKey(
+            { name: 'PBKDF2', salt: enc.encode(VAULT_SALT), iterations: 100000, hash: 'SHA-256' },
+            keyMaterial,
+            { name: 'AES-GCM', length: 256 },
+            false,
+            ['encrypt', 'decrypt']
+        );
+    }
+
+    async function encryptData(data) {
+        try {
+            const key = await deriveKey(getDeviceFingerprint());
+            const enc = new TextEncoder();
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(JSON.stringify(data)));
+            const result = { iv: Array.from(iv), data: Array.from(new Uint8Array(encrypted)) };
+            return btoa(JSON.stringify(result));
+        } catch (e) { console.error('Encrypt error:', e); return null; }
+    }
+
+    async function decryptData(encoded) {
+        try {
+            if (!encoded) return null;
+            const key = await deriveKey(getDeviceFingerprint());
+            const { iv, data } = JSON.parse(atob(encoded));
+            const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: new Uint8Array(iv) }, key, new Uint8Array(data));
+            return JSON.parse(new TextDecoder().decode(decrypted));
+        } catch (e) { console.error('Decrypt error:', e); return null; }
+    }
+
+    async function saveVault(data) {
+        const encrypted = await encryptData(data);
+        if (encrypted) localStorage.setItem('lila_vault', encrypted);
+        return !!encrypted;
+    }
+
+    async function loadVault() {
+        const encrypted = localStorage.getItem('lila_vault');
+        if (!encrypted) return null;
+        return await decryptData(encrypted);
+    }
+
+    async function loadConfigFromVault() {
+        const data = await loadVault();
+        if (data) {
+            CONFIG.bankrApiKey = data.bankrApiKey || '';
+            CONFIG.bankrPartnerKey = data.bankrPartnerKey || '';
+            CONFIG.gatewayUrl = data.gatewayUrl || '';
+            CONFIG.gatewayToken = data.gatewayToken || '';
+        }
+    }
+
+    // ===== VAULT UI CONTROLLER =====
+
+    function cmdVault() {
+        addBlank();
+        addLine('  🔐 Opening Secure Vault...', 'info');
+        addBlank();
+        openVaultUI();
+    }
+
+    function openVaultUI() {
+        const overlay = document.getElementById('vault-overlay');
+        overlay.classList.remove('vault-hidden');
+        // Populate fields from CONFIG
+        document.getElementById('vault-bankr-key').value = CONFIG.bankrApiKey;
+        document.getElementById('vault-partner-key').value = CONFIG.bankrPartnerKey;
+        document.getElementById('vault-gw-url').value = CONFIG.gatewayUrl;
+        document.getElementById('vault-gw-token').value = CONFIG.gatewayToken;
+        // Reset status
+        setVaultStatus('', '');
+    }
+
+    function closeVaultUI() {
+        document.getElementById('vault-overlay').classList.add('vault-hidden');
+        input.focus();
+    }
+
+    function setVaultStatus(msg, type) {
+        const el = document.getElementById('vault-status');
+        el.className = type ? 'vault-status-' + type : 'vault-status-hidden';
+        el.textContent = msg;
+    }
+
+    // Vault event listeners
+    function initVaultUI() {
+        document.getElementById('vault-close').addEventListener('click', closeVaultUI);
+        document.getElementById('vault-overlay').addEventListener('click', (e) => {
+            if (e.target.id === 'vault-overlay') closeVaultUI();
+        });
+
+        // Toggle visibility buttons
+        document.querySelectorAll('.vault-toggle-vis').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const target = document.getElementById(btn.dataset.target);
+                if (target) {
+                    target.type = target.type === 'password' ? 'text' : 'password';
+                    btn.textContent = target.type === 'password' ? '👁' : '🔒';
+                }
+            });
+        });
+
+        // Save button
+        document.getElementById('vault-save').addEventListener('click', async () => {
+            const data = {
+                bankrApiKey: document.getElementById('vault-bankr-key').value.trim(),
+                bankrPartnerKey: document.getElementById('vault-partner-key').value.trim(),
+                gatewayUrl: document.getElementById('vault-gw-url').value.trim(),
+                gatewayToken: document.getElementById('vault-gw-token').value.trim(),
+            };
+            const ok = await saveVault(data);
+            if (ok) {
+                CONFIG.bankrApiKey = data.bankrApiKey;
+                CONFIG.bankrPartnerKey = data.bankrPartnerKey;
+                CONFIG.gatewayUrl = data.gatewayUrl;
+                CONFIG.gatewayToken = data.gatewayToken;
+                setVaultStatus('✓ Encrypted and saved to local vault.', 'success');
+                addLine('  [VAULT] Keys encrypted and saved successfully.', 'success');
+            } else {
+                setVaultStatus('✗ Failed to encrypt. Check browser crypto support.', 'error');
+            }
+        });
+
+        // Clear button
+        document.getElementById('vault-clear').addEventListener('click', () => {
+            if (!confirm('Delete all stored API keys? This cannot be undone.')) return;
+            localStorage.removeItem('lila_vault');
+            CONFIG.bankrApiKey = ''; CONFIG.bankrPartnerKey = '';
+            CONFIG.gatewayUrl = ''; CONFIG.gatewayToken = '';
+            document.getElementById('vault-bankr-key').value = '';
+            document.getElementById('vault-partner-key').value = '';
+            document.getElementById('vault-gw-url').value = '';
+            document.getElementById('vault-gw-token').value = '';
+            setVaultStatus('⚠ All keys cleared.', 'warning');
+            addLine('  [VAULT] All keys have been cleared.', 'warning');
+        });
+
+        // Escape key closes vault
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !document.getElementById('vault-overlay').classList.contains('vault-hidden')) {
+                closeVaultUI();
+            }
+        });
+    }
+
     // ===== INIT =====
-    boot();
+    async function init() {
+        initVaultUI();
+        await loadConfigFromVault();
+        boot();
+    }
+    init();
 
 })();

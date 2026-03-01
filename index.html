@@ -81,7 +81,73 @@
         </footer>
     </div>
 
-    <!-- Audio for key sounds (optional, subtle) -->
+    <!-- Secure Settings Vault Modal -->
+    <div id="vault-overlay" class="vault-hidden">
+        <div id="vault-panel">
+            <div id="vault-header">
+                <span id="vault-title">🔐 SECURE VAULT — API Configuration</span>
+                <button id="vault-close" title="Close (Esc)">✕</button>
+            </div>
+            <div id="vault-body">
+                <div class="vault-notice">
+                    <span class="vault-lock-icon">🛡️</span>
+                    Keys are encrypted and stored locally in your browser. Never transmitted to any server.
+                </div>
+
+                <div class="vault-section">
+                    <div class="vault-section-title">▸ BANKR PARTNER API</div>
+                    <div class="vault-field">
+                        <label for="vault-bankr-key">API Key</label>
+                        <div class="vault-input-wrap">
+                            <input type="password" id="vault-bankr-key" placeholder="Enter Bankr API key..."
+                                autocomplete="off" spellcheck="false">
+                            <button class="vault-toggle-vis" data-target="vault-bankr-key" title="Show/Hide">👁</button>
+                        </div>
+                        <span class="vault-field-hint">From <a href="https://bankr.bot/api"
+                                target="_blank">bankr.bot/api</a> — Enable Agent API access</span>
+                    </div>
+                    <div class="vault-field">
+                        <label for="vault-partner-key">Partner Key</label>
+                        <div class="vault-input-wrap">
+                            <input type="password" id="vault-partner-key" placeholder="bk_..." autocomplete="off"
+                                spellcheck="false">
+                            <button class="vault-toggle-vis" data-target="vault-partner-key"
+                                title="Show/Hide">👁</button>
+                        </div>
+                        <span class="vault-field-hint">Partner Deploy API key for token launching</span>
+                    </div>
+                </div>
+
+                <div class="vault-section">
+                    <div class="vault-section-title">▸ OPENCLAW GATEWAY</div>
+                    <div class="vault-field">
+                        <label for="vault-gw-url">Gateway URL</label>
+                        <div class="vault-input-wrap">
+                            <input type="text" id="vault-gw-url" placeholder="ws://localhost:18789" autocomplete="off"
+                                spellcheck="false">
+                        </div>
+                        <span class="vault-field-hint">WebSocket endpoint of your OpenClaw Gateway</span>
+                    </div>
+                    <div class="vault-field">
+                        <label for="vault-gw-token">Gateway Token</label>
+                        <div class="vault-input-wrap">
+                            <input type="password" id="vault-gw-token" placeholder="Gateway auth token..."
+                                autocomplete="off" spellcheck="false">
+                            <button class="vault-toggle-vis" data-target="vault-gw-token" title="Show/Hide">👁</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="vault-actions">
+                    <button id="vault-save" class="vault-btn vault-btn-primary">💾 SAVE & ENCRYPT</button>
+                    <button id="vault-clear" class="vault-btn vault-btn-danger">🗑️ CLEAR ALL</button>
+                </div>
+
+                <div id="vault-status" class="vault-status-hidden"></div>
+            </div>
+        </div>
+    </div>
+
     <script src="terminal.js"></script>
 </body>
 
