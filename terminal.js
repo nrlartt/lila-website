@@ -21,6 +21,13 @@
         bankrApiUrl: 'https://api.bankr.bot',
         bankrApiKey: '',
         bankrPartnerKey: '',
+
+        // --- GLOBAL API KEY SYSTEM ---
+        // Bu anahtar şifrelenmiştir ve kullanıcıların kodu inceleyip doğrudan kopyalamasını engeller (obfuscation).
+        // Terminal kullanıcıları vault'ta kendi Key'lerini girmediyse bile bu key devreye girer.
+        // DİKKAT: Github Pages gibi statik sitelerde %100 güvenlik imkansızdır, bu yöntem sadece basit taramaları engeller!
+        publicObfuscatedKey: 'U2FsdGVkX19DdW1teQ==', // Buraya şifreli key'inizi yapıştıracaksınız (aşağıdaki "encrypt_tool" komutuna bakın)
+        publicObfuscatedPartnerKey: '', // Gerekirse partner key için
     };
 
     // ===== STATE =====
@@ -90,6 +97,7 @@
         socials: { description: 'Social channels & community', execute: cmdSocials },
         config: { description: 'View/set Gateway & API configuration', execute: cmdConfig },
         vault: { description: 'Open secure API key vault (🔐)', execute: cmdVault },
+        encrypt: { description: 'Developer tool: Encrypt API key for public use', execute: cmdEncryptKey },
         // Web3 Wallet
         wallet: { description: 'Connect/disconnect Web3 wallet (MetaMask)', execute: cmdWallet },
         // Bankr API
@@ -468,7 +476,7 @@
         const categories = {
             'AGENT INTERACTION': ['ask', 'connect', 'disconnect', 'status', 'history', 'config'],
             'WEB3 & DEFI': ['wallet', 'swap', 'price', 'balances', 'launch'],
-            'SECURITY': ['vault'],
+            'SECURITY': ['vault', 'encrypt'],
             'PROTOCOL': ['about', 'services', 'token', 'hire', 'buy'],
             'COMMUNITY': ['socials'],
             'SYSTEM': ['help', 'clear', 'neofetch', 'whoami', 'uptime', 'ping', 'echo', 'date', 'ascii', 'matrix', 'reboot'],
@@ -839,9 +847,47 @@
 
     // ===== BANKR API HELPERS =====
 
+    // Basit bir obfuscation/deobfuscation (statik siteler için)
+    function deobfuscateKey(obfuscatedStr) {
+        if (!obfuscatedStr || obfuscatedStr === 'U2FsdGVkX19DdW1teQ==') return null;
+        try {
+            return atob(obfuscatedStr).split('').reverse().join('');
+        } catch (e) { return null; }
+    }
+
+    // Geliştirici aracı: Kendi api_key'inizi terminale yazarak şifreleyin
+    async function cmdEncryptKey(args) {
+        addBlank();
+        if (!args || !args.trim()) {
+            addLine('  [DEV TOOL] Obfuscate your API Key to put in terminal.js', 'warning');
+            addLine('  Usage: encrypt <YOUR_RAW_API_KEY>', 'system'); addBlank(); return;
+        }
+        const rawKey = args.trim();
+        const obfuscated = btoa(rawKey.split('').reverse().join(''));
+        addLine('  ▸ SUCCESS! Your obfuscated key is generated.', 'success');
+        addLine('  Open terminal.js, find "publicObfuscatedKey" and set it to:', 'system');
+        addBlank();
+        addLine(`  <span style="color:var(--green-bright)">${obfuscated}</span>`);
+        addBlank();
+        addLine('  ⚠ Warning: This obfuscation hides the key from bots and github searches,', 'warning');
+        addLine('  but a determined developer can still find it in the network tab.', 'warning');
+        addLine('  For 100% security, use the /api/bankr.js Vercel backend proxy instead.', 'warning');
+        addBlank();
+    }
+
     async function bankrRequest(method, path, body) {
-        if (!CONFIG.bankrApiKey) { addLine('  [ERR] Bankr API key not set. Use: config set bankr-key <key>', 'error'); return null; }
-        const opts = { method, headers: { 'X-API-Key': CONFIG.bankrApiKey, 'Content-Type': 'application/json' } };
+        // Öncelik 1: Kullanıcının kendi Vault'ta girdiği API Key var mı?
+        let apiKey = CONFIG.bankrApiKey;
+        // Öncelik 2: Public olarak şifreli kaydedilmiş (obfuscated) API Key var mı?
+        if (!apiKey) apiKey = deobfuscateKey(CONFIG.publicObfuscatedKey);
+
+        if (!apiKey) {
+            addLine('  [ERR] No Bankr API key available.', 'error');
+            addLine('  System has no public key. Use "vault" to enter your own key.', 'system');
+            return null;
+        }
+
+        const opts = { method, headers: { 'X-API-Key': apiKey, 'Content-Type': 'application/json' } };
         if (body) opts.body = JSON.stringify(body);
         try {
             const res = await fetch(CONFIG.bankrApiUrl + path, opts);
@@ -921,9 +967,12 @@
 
     async function cmdLaunch(args) {
         addBlank();
-        if (!CONFIG.bankrPartnerKey) {
+        let pKey = CONFIG.bankrPartnerKey || deobfuscateKey(CONFIG.publicObfuscatedPartnerKey);
+        let aKey = CONFIG.bankrApiKey || deobfuscateKey(CONFIG.publicObfuscatedKey);
+
+        if (!pKey) {
             addLine('  [ERR] Bankr Partner key not set.', 'error');
-            addLine('  Use: config set partner-key <bk_...>', 'system'); addBlank(); return;
+            addLine('  Open "vault" to configure or admin must set public partner key.', 'system'); addBlank(); return;
         }
         if (!args || !args.trim()) {
             addLine('  Usage: launch <token_name> <symbol> [chain]', 'warning');
@@ -938,7 +987,7 @@
         try {
             const res = await fetch(CONFIG.bankrApiUrl + '/partner/deploy', {
                 method: 'POST',
-                headers: { 'X-Partner-Key': CONFIG.bankrPartnerKey, 'X-API-Key': CONFIG.bankrApiKey, 'Content-Type': 'application/json' },
+                headers: { 'X-Partner-Key': pKey, 'X-API-Key': aKey, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name, symbol, chain, wallet: state.walletAddress || undefined }),
             });
             const data = await res.json();
