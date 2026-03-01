@@ -14,15 +14,14 @@
     const pulseDot = document.querySelector('.pulse-dot');
 
     // ===== CONFIGURATION =====
-    // OpenClaw Gateway connection settings
-    // Set these to connect to your running OpenClaw Gateway
     const CONFIG = {
-        // Gateway WebSocket URL — set when your gateway is running
-        // Example: ws://your-server:18789 or wss://your-tailnet-host:18789
         gatewayUrl: localStorage.getItem('lila_gateway_url') || '',
         gatewayToken: localStorage.getItem('lila_gateway_token') || '',
-        // Protocol version
         protocolVersion: 3,
+        // Bankr Partner API
+        bankrApiUrl: 'https://api.bankr.bot',
+        bankrApiKey: localStorage.getItem('lila_bankr_key') || '',
+        bankrPartnerKey: localStorage.getItem('lila_bankr_partner_key') || '',
     };
 
     // ===== STATE =====
@@ -41,6 +40,10 @@
         chatHistory: [],
         agentStreaming: false,
         currentStreamLine: null,
+        // Web3 wallet
+        walletAddress: null,
+        walletChainId: null,
+        walletProvider: null,
     };
 
     // ===== CONSTANTS =====
@@ -67,6 +70,8 @@
         { text: '  [BOOT] OpenClaw Gateway protocol v3 ........................ OK', cls: 'success', delay: 150 },
         { text: '  [BOOT] Virtuals Protocol ACP layer ......................... OK', cls: 'success', delay: 180 },
         { text: '  [BOOT] Agent Commerce Protocol (ACP #2774) ................. OK', cls: 'success', delay: 120 },
+        { text: '  [BOOT] Bankr Partner API layer ............................. OK', cls: 'success', delay: 160 },
+        { text: '  [BOOT] Web3 wallet interface ............................... OK', cls: 'success', delay: 140 },
         { text: '  [BOOT] Initializing WebSocket client ....................... OK', cls: 'success', delay: 200 },
         { text: '', cls: 'blank' },
     ];
@@ -84,7 +89,15 @@
         hire: { description: 'Hire Lila on Virtuals ACP', execute: cmdHire },
         buy: { description: 'Acquire $LILA token', execute: cmdBuy },
         socials: { description: 'Social channels & community', execute: cmdSocials },
-        config: { description: 'View/set Gateway configuration', execute: cmdConfig },
+        config: { description: 'View/set Gateway & API configuration', execute: cmdConfig },
+        // Web3 Wallet
+        wallet: { description: 'Connect/disconnect Web3 wallet (MetaMask)', execute: cmdWallet },
+        // Bankr API
+        swap: { description: 'Swap tokens via Bankr (swap <amount> <from> <to>)', execute: cmdSwap },
+        price: { description: 'Check token price (price <symbol>)', execute: cmdPrice },
+        balances: { description: 'Check wallet balances via Bankr', execute: cmdBalances },
+        launch: { description: 'Launch a token via Bankr Partner API', execute: cmdLaunch },
+        // System
         clear: { description: 'Clear terminal output', execute: cmdClear },
         neofetch: { description: 'System info display', execute: cmdNeofetch },
         whoami: { description: 'Current session identity', execute: cmdWhoami },
@@ -454,6 +467,7 @@
 
         const categories = {
             'AGENT INTERACTION': ['ask', 'connect', 'disconnect', 'status', 'history', 'config'],
+            'WEB3 & DEFI': ['wallet', 'swap', 'price', 'balances', 'launch'],
             'PROTOCOL': ['about', 'services', 'token', 'hire', 'buy'],
             'COMMUNITY': ['socials'],
             'SYSTEM': ['help', 'clear', 'neofetch', 'whoami', 'uptime', 'ping', 'echo', 'date', 'ascii', 'matrix', 'reboot'],
@@ -667,11 +681,13 @@
             ['Gateway Protocol', 'OpenClaw WS v3', 'info'],
             ['Gateway Link', state.connected ? 'CONNECTED' : 'NOT CONNECTED', state.connected ? 'success' : 'warning'],
             ['Gateway URL', CONFIG.gatewayUrl || '(not configured)', CONFIG.gatewayUrl ? 'system' : 'warning'],
+            ['Web3 Wallet', state.walletAddress ? shortAddr(state.walletAddress) + ' (' + getChainName(state.walletChainId) + ')' : 'NOT CONNECTED', state.walletAddress ? 'success' : 'warning'],
+            ['Bankr API', CONFIG.bankrApiKey ? 'CONFIGURED' : 'NOT SET', CONFIG.bankrApiKey ? 'success' : 'warning'],
+            ['Bankr Partner', CONFIG.bankrPartnerKey ? 'CONFIGURED' : 'NOT SET', CONFIG.bankrPartnerKey ? 'success' : 'warning'],
             ['Network', 'BASE (Ethereum L2)', 'info'],
             ['Uptime', getUptime(), 'info'],
             ['Session', state.sessionCode, 'system'],
             ['Commands', state.commandCount.toString(), 'system'],
-            ['Chat Messages', state.chatHistory.length.toString(), 'system'],
         ];
 
         for (const [label, value, cls] of checks) {
@@ -747,33 +763,194 @@
     async function cmdConfig(args) {
         addBlank();
         const parts = args ? args.trim().split(/\s+/) : [];
-
         if (parts[0] === 'set' && parts[1] === 'url' && parts[2]) {
-            CONFIG.gatewayUrl = parts[2];
-            localStorage.setItem('lila_gateway_url', parts[2]);
+            CONFIG.gatewayUrl = parts[2]; localStorage.setItem('lila_gateway_url', parts[2]);
             addLine('  ▸ Gateway URL saved: ' + parts[2], 'success');
         } else if (parts[0] === 'set' && parts[1] === 'token' && parts[2]) {
-            CONFIG.gatewayToken = parts[2];
-            localStorage.setItem('lila_gateway_token', parts[2]);
+            CONFIG.gatewayToken = parts[2]; localStorage.setItem('lila_gateway_token', parts[2]);
             addLine('  ▸ Gateway token saved.', 'success');
+        } else if (parts[0] === 'set' && parts[1] === 'bankr-key' && parts[2]) {
+            CONFIG.bankrApiKey = parts[2]; localStorage.setItem('lila_bankr_key', parts[2]);
+            addLine('  ▸ Bankr API key saved.', 'success');
+        } else if (parts[0] === 'set' && parts[1] === 'partner-key' && parts[2]) {
+            CONFIG.bankrPartnerKey = parts[2]; localStorage.setItem('lila_bankr_partner_key', parts[2]);
+            addLine('  ▸ Bankr Partner key saved.', 'success');
         } else if (parts[0] === 'clear') {
-            localStorage.removeItem('lila_gateway_url');
-            localStorage.removeItem('lila_gateway_token');
-            CONFIG.gatewayUrl = '';
-            CONFIG.gatewayToken = '';
-            addLine('  ▸ Configuration cleared.', 'success');
+            ['lila_gateway_url', 'lila_gateway_token', 'lila_bankr_key', 'lila_bankr_partner_key'].forEach(k => localStorage.removeItem(k));
+            CONFIG.gatewayUrl = ''; CONFIG.gatewayToken = ''; CONFIG.bankrApiKey = ''; CONFIG.bankrPartnerKey = '';
+            addLine('  ▸ All configuration cleared.', 'success');
         } else {
-            addLine('  ▸ CURRENT CONFIGURATION', 'warning');
-            addBlank();
-            addLine(`  Gateway URL:   ${CONFIG.gatewayUrl || '(not set)'}`, CONFIG.gatewayUrl ? 'info' : 'system');
-            addLine(`  Gateway Token: ${CONFIG.gatewayToken ? '••••••••' : '(not set)'}`, CONFIG.gatewayToken ? 'info' : 'system');
-            addLine(`  Protocol:      v${CONFIG.protocolVersion}`, 'system');
-            addBlank();
+            addLine('  ▸ CURRENT CONFIGURATION', 'warning'); addBlank();
+            addLine(`  Gateway URL:      ${CONFIG.gatewayUrl || '(not set)'}`, CONFIG.gatewayUrl ? 'info' : 'system');
+            addLine(`  Gateway Token:    ${CONFIG.gatewayToken ? '••••••••' : '(not set)'}`, CONFIG.gatewayToken ? 'info' : 'system');
+            addLine(`  Bankr API Key:    ${CONFIG.bankrApiKey ? '••••••••' : '(not set)'}`, CONFIG.bankrApiKey ? 'info' : 'system');
+            addLine(`  Bankr Partner:    ${CONFIG.bankrPartnerKey ? '••••••••' : '(not set)'}`, CONFIG.bankrPartnerKey ? 'info' : 'system');
+            addLine(`  Web3 Wallet:      ${state.walletAddress ? shortAddr(state.walletAddress) : '(not connected)'}`, state.walletAddress ? 'success' : 'system');
+            addLine(`  Protocol:         v${CONFIG.protocolVersion}`, 'system'); addBlank();
             addLine('  Commands:', 'system');
-            addLine('    config set url <ws://host:port>   Set gateway WebSocket URL', 'system');
-            addLine('    config set token <token>          Set gateway auth token', 'system');
-            addLine('    config clear                      Clear all saved config', 'system');
+            addLine('    config set url <ws://host:port>     Gateway WebSocket URL', 'system');
+            addLine('    config set token <token>            Gateway auth token', 'system');
+            addLine('    config set bankr-key <key>          Bankr API key', 'system');
+            addLine('    config set partner-key <bk_...>     Bankr Partner key', 'system');
+            addLine('    config clear                        Clear all config', 'system');
         }
+        addBlank();
+    }
+
+    function shortAddr(addr) { return addr ? addr.slice(0, 6) + '...' + addr.slice(-4) : ''; }
+
+    // ===== WEB3 WALLET =====
+
+    async function cmdWallet(args) {
+        addBlank();
+        const sub = args ? args.trim().toLowerCase() : '';
+        if (sub === 'disconnect') {
+            state.walletAddress = null; state.walletChainId = null; state.walletProvider = null;
+            addLine('  ▸ Wallet disconnected.', 'warning'); addBlank(); return;
+        }
+        if (state.walletAddress && sub !== 'connect') {
+            addLine('  ▸ WALLET STATUS', 'warning'); addBlank();
+            addLine(`  Address:   <span style="color:var(--green-bright)">${state.walletAddress}</span>`);
+            addLine(`  Short:     ${shortAddr(state.walletAddress)}`, 'system');
+            addLine(`  Chain ID:  ${state.walletChainId}`, 'info');
+            addLine(`  Network:   ${getChainName(state.walletChainId)}`, 'info'); addBlank();
+            addLine('  Use "wallet disconnect" to disconnect.', 'system'); addBlank(); return;
+        }
+        if (typeof window.ethereum === 'undefined') {
+            addLine('  [ERR] No Web3 wallet detected.', 'error');
+            addLine('  Install MetaMask: <a href="https://metamask.io" target="_blank">metamask.io</a>', 'system'); addBlank(); return;
+        }
+        addLine('  [WALLET] Requesting connection...', 'info');
+        try {
+            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+            const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+            state.walletAddress = accounts[0]; state.walletChainId = parseInt(chainId, 16); state.walletProvider = window.ethereum;
+            addLine(`  ▸ Connected: <span style="color:var(--green-bright)">${shortAddr(state.walletAddress)}</span>`, 'success');
+            addLine(`  ▸ Network: ${getChainName(state.walletChainId)} (${state.walletChainId})`, 'info');
+            window.ethereum.on('accountsChanged', (accs) => { state.walletAddress = accs[0] || null; });
+            window.ethereum.on('chainChanged', (cid) => { state.walletChainId = parseInt(cid, 16); });
+        } catch (e) { addLine('  [ERR] ' + (e.message || 'User rejected connection'), 'error'); }
+        addBlank();
+    }
+
+    function getChainName(id) {
+        const chains = { 1: 'Ethereum', 8453: 'BASE', 137: 'Polygon', 42161: 'Arbitrum', 10: 'Optimism', 56: 'BSC', 43114: 'Avalanche' };
+        return chains[id] || `Chain ${id}`;
+    }
+
+    // ===== BANKR API HELPERS =====
+
+    async function bankrRequest(method, path, body) {
+        if (!CONFIG.bankrApiKey) { addLine('  [ERR] Bankr API key not set. Use: config set bankr-key <key>', 'error'); return null; }
+        const opts = { method, headers: { 'X-API-Key': CONFIG.bankrApiKey, 'Content-Type': 'application/json' } };
+        if (body) opts.body = JSON.stringify(body);
+        try {
+            const res = await fetch(CONFIG.bankrApiUrl + path, opts);
+            return await res.json();
+        } catch (e) { addLine('  [ERR] Bankr API error: ' + e.message, 'error'); return null; }
+    }
+
+    async function bankrPromptAndPoll(prompt) {
+        const job = await bankrRequest('POST', '/agent/prompt', { prompt });
+        if (!job || !job.success) { addLine('  [ERR] Failed to submit: ' + (job?.message || 'unknown'), 'error'); return null; }
+        addLine(`  [BANKR] Job ${job.jobId} submitted, processing...`, 'system');
+        for (let i = 0; i < 20; i++) {
+            await sleep(2000);
+            const status = await bankrRequest('GET', `/agent/job/${job.jobId}`);
+            if (!status) return null;
+            if (status.status === 'completed') return status;
+            if (status.status === 'failed') { addLine('  [BANKR] Job failed: ' + (status.error || ''), 'error'); return null; }
+        }
+        addLine('  [BANKR] Job timed out.', 'warning'); return null;
+    }
+
+    // ===== BANKR COMMANDS =====
+
+    async function cmdSwap(args) {
+        addBlank();
+        if (!args || !args.trim()) {
+            addLine('  Usage: swap <amount> <from_token> <to_token>', 'warning');
+            addLine('  Example: swap 0.1 ETH USDC', 'system');
+            addLine('  Example: swap 100 USDC LILA', 'system'); addBlank(); return;
+        }
+        const parts = args.trim().split(/\s+/);
+        if (parts.length < 3) { addLine('  Usage: swap <amount> <from> <to>', 'warning'); addBlank(); return; }
+        const [amount, from, to] = parts;
+        addLine(`  [BANKR] Requesting swap: ${amount} ${from.toUpperCase()} → ${to.toUpperCase()}...`, 'info');
+        await showThinking(1000);
+        const result = await bankrPromptAndPoll(`swap ${amount} ${from} to ${to}`);
+        if (result && result.response) {
+            const lines = result.response.split('\n');
+            for (const l of lines) addLine('  ' + l, 'agent-response');
+        }
+        addBlank();
+    }
+
+    async function cmdPrice(args) {
+        addBlank();
+        if (!args || !args.trim()) { addLine('  Usage: price <token_symbol>', 'warning'); addLine('  Example: price ETH', 'system'); addBlank(); return; }
+        const symbol = args.trim().toUpperCase();
+        addLine(`  [BANKR] Fetching price for ${symbol}...`, 'info');
+        await showThinking(800);
+        const result = await bankrPromptAndPoll(`what is the price of ${symbol}?`);
+        if (result && result.response) {
+            const lines = result.response.split('\n');
+            for (const l of lines) addLine('  ' + l, 'agent-response');
+        }
+        addBlank();
+    }
+
+    async function cmdBalances() {
+        addBlank();
+        addLine('  [BANKR] Fetching balances...', 'info');
+        await showThinking(600);
+        const data = await bankrRequest('GET', '/agent/balances');
+        if (!data) { addBlank(); return; }
+        if (data.balances && Array.isArray(data.balances)) {
+            addLine('  ▸ WALLET BALANCES', 'warning'); addBlank();
+            for (const b of data.balances) {
+                const val = parseFloat(b.balance || b.amount || 0).toFixed(4);
+                const sym = b.symbol || b.token || '???';
+                const chain = b.chain || '';
+                addLine(`  <span style="color:var(--purple-bright);min-width:100px;display:inline-block">${sym.padEnd(10)}</span> <span style="color:var(--green-bright)">${val}</span> <span style="color:var(--text-muted)">${chain}</span>`);
+            }
+        } else {
+            addLine('  ' + JSON.stringify(data), 'system');
+        }
+        addBlank();
+    }
+
+    async function cmdLaunch(args) {
+        addBlank();
+        if (!CONFIG.bankrPartnerKey) {
+            addLine('  [ERR] Bankr Partner key not set.', 'error');
+            addLine('  Use: config set partner-key <bk_...>', 'system'); addBlank(); return;
+        }
+        if (!args || !args.trim()) {
+            addLine('  Usage: launch <token_name> <symbol> [chain]', 'warning');
+            addLine('  Example: launch "My Token" MTK base', 'system');
+            addLine('  Example: launch "Cool Coin" COOL solana', 'system'); addBlank(); return;
+        }
+        const match = args.match(/"([^"]+)"\s+(\S+)(?:\s+(\S+))?/) || args.match(/(\S+)\s+(\S+)(?:\s+(\S+))?/);
+        if (!match) { addLine('  [ERR] Could not parse. Use: launch "Name" SYMBOL [chain]', 'error'); addBlank(); return; }
+        const name = match[1], symbol = match[2], chain = (match[3] || 'base').toLowerCase();
+        addLine(`  [BANKR] Launching token: ${name} ($${symbol}) on ${chain}...`, 'info');
+        await showThinking(1500);
+        try {
+            const res = await fetch(CONFIG.bankrApiUrl + '/partner/deploy', {
+                method: 'POST',
+                headers: { 'X-Partner-Key': CONFIG.bankrPartnerKey, 'X-API-Key': CONFIG.bankrApiKey, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, symbol, chain, wallet: state.walletAddress || undefined }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                addLine('  ▸ Token launched successfully!', 'success');
+                if (data.address) addLine(`  Contract: <span style="color:var(--green-bright)">${data.address}</span>`);
+                if (data.url) addLine(`  View: <a href="${data.url}" target="_blank">${data.url}</a>`, 'info');
+            } else {
+                addLine('  [ERR] Launch failed: ' + (data.message || data.error || 'Unknown'), 'error');
+            }
+        } catch (e) { addLine('  [ERR] ' + e.message, 'error'); }
         addBlank();
     }
 
@@ -784,14 +961,11 @@
         if (state.chatHistory.length === 0) {
             addLine('  No chat history. Use "ask <message>" to start a conversation.', 'system');
         } else {
-            addLine('  ▸ CHAT HISTORY', 'warning');
-            addBlank();
+            addLine('  ▸ CHAT HISTORY', 'warning'); addBlank();
             for (const entry of state.chatHistory.slice(-20)) {
-                const role = entry.role || 'unknown';
-                const text = entry.text || entry.content || '';
+                const role = entry.role || 'unknown'; const text = entry.text || entry.content || '';
                 const cls = role === 'user' ? 'command-echo' : 'agent-response';
-                const prefix = role === 'user' ? '  [YOU]' : '  [LILA]';
-                addLine(`${prefix} ${text.substring(0, 200)}`, cls);
+                addLine(`${role === 'user' ? '  [YOU]' : '  [LILA]'} ${text.substring(0, 200)}`, cls);
             }
         }
         addBlank();
@@ -816,6 +990,8 @@
             `<span style="color:var(--purple-bright)">Agent:</span>     Virtuals ACP #2774`,
             `<span style="color:var(--purple-bright)">Network:</span>   BASE (Ethereum L2)`,
             `<span style="color:var(--purple-bright)">Link:</span>      ${state.connected ? 'CONNECTED' : 'STANDBY'}`,
+            `<span style="color:var(--purple-bright)">Wallet:</span>    ${state.walletAddress ? shortAddr(state.walletAddress) : 'NOT CONNECTED'}`,
+            `<span style="color:var(--purple-bright)">Bankr:</span>     ${CONFIG.bankrApiKey ? 'ACTIVE' : 'NOT SET'}`,
             `<span style="color:var(--purple-bright)">Uptime:</span>    ${getUptime()}`,
             `<span style="color:var(--purple-bright)">Shell:</span>     lila-sh 4.0`,
             `<span style="color:var(--purple-bright)">Protocol:</span>  OpenClaw WS v3`,
@@ -843,6 +1019,7 @@
         addLine(`  Session: ${state.sessionCode}`, 'system');
         addLine(`  Uptime: ${getUptime()}`, 'system');
         addLine(`  Commands: ${state.commandCount}`, 'system');
+        addLine(`  Wallet: ${state.walletAddress ? shortAddr(state.walletAddress) : 'not connected'}`, state.walletAddress ? 'success' : 'system');
         addLine(`  Gateway: ${state.connected ? 'LINKED' : 'STANDBY'}`, state.connected ? 'success' : 'warning');
         addBlank();
     }
