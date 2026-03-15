@@ -12,6 +12,7 @@
     const latencyValue = document.getElementById('latency-value');
     const statusText = document.getElementById('status-text');
     const pulseDot = document.querySelector('.pulse-dot');
+    const networkStatusEl = document.getElementById('network-status');
 
     // ===== CONFIGURATION =====
     const CONFIG = {
@@ -46,30 +47,30 @@
         chatHistory: [],
         agentStreaming: false,
         currentStreamLine: null,
-        // Web3 wallet
+        // Solana wallet
         walletAddress: null,
-        walletChainId: null,
+        walletCluster: 'mainnet-beta',
         walletProvider: null,
+        walletProviderName: null,
+        walletListenersBound: false,
     };
 
     // ===== CONSTANTS =====
     const ASCII_LOGO = [
-        '██╗     ██╗██╗      █████╗ ',
-        '██║     ██║██║     ██╔══██╗',
-        '██║     ██║██║     ███████║',
-        '██║     ██║██║     ██╔══██║',
-        '███████╗██║███████╗██║  ██║',
-        '╚══════╝╚═╝╚══════╝╚═╝  ╚═╝',
+        '  LLL      III   LLL      AAA   ',
+        '  LLL      III   LLL     AAAAA  ',
+        '  LLL      III   LLL    AA   AA ',
+        '  LLLLL    III   LLLLL  AA   AA ',
     ];
 
     const BOOT_SEQUENCE = [
         { text: '', cls: 'blank' },
         { text: '', cls: 'ascii-art glow', isLogo: true },
         { text: '', cls: 'blank' },
-        { text: '  ╔══════════════════════════════════════════════════════════════╗', cls: 'system' },
-        { text: '  ║  LILA NEURAL TERMINAL v4.0 — OpenClaw AI Agent Interface   ║', cls: 'info' },
-        { text: '  ║  Autonomous Growth Protocol • Virtuals Protocol #2774      ║', cls: 'system' },
-        { text: '  ╚══════════════════════════════════════════════════════════════╝', cls: 'system' },
+        { text: '  ------------------------------------------------------------', cls: 'system' },
+        { text: '  LILA SOLANA TERMINAL v4.0 - OpenClaw AI Agent Interface', cls: 'info' },
+        { text: '  Solana-native workflows, SPL tooling, and Bankr launch support', cls: 'system' },
+        { text: '  ------------------------------------------------------------', cls: 'system' },
         { text: '', cls: 'blank' },
         { text: '  [BOOT] Initializing neural core...', cls: 'system', delay: 100 },
         { text: '  [BOOT] Loading agent runtime: LILA v4.0 .................... OK', cls: 'success', delay: 200 },
@@ -77,7 +78,7 @@
         { text: '  [BOOT] Virtuals Protocol ACP layer ......................... OK', cls: 'success', delay: 180 },
         { text: '  [BOOT] Agent Commerce Protocol (ACP #2774) ................. OK', cls: 'success', delay: 120 },
         { text: '  [BOOT] Bankr Partner API layer ............................. OK', cls: 'success', delay: 160 },
-        { text: '  [BOOT] Web3 wallet interface ............................... OK', cls: 'success', delay: 140 },
+        { text: '  [BOOT] Solana wallet adapter ............................... OK', cls: 'success', delay: 140 },
         { text: '  [BOOT] Initializing WebSocket client ....................... OK', cls: 'success', delay: 200 },
         { text: '', cls: 'blank' },
     ];
@@ -85,7 +86,7 @@
     // ===== COMMANDS =====
     const COMMANDS = {
         help: { description: 'Show available commands', execute: cmdHelp },
-        about: { description: 'About Lila — Virtuals Protocol Agent #2774', execute: cmdAbout },
+        about: { description: 'About Lila - Solana execution profile', execute: cmdAbout },
         connect: { description: 'Connect to OpenClaw Gateway', execute: cmdConnect },
         disconnect: { description: 'Disconnect from Gateway', execute: cmdDisconnect },
         status: { description: 'Connection & system status', execute: cmdStatus },
@@ -96,15 +97,16 @@
         buy: { description: 'Acquire $LILA token', execute: cmdBuy },
         socials: { description: 'Social channels & community', execute: cmdSocials },
         config: { description: 'View/set Gateway & API configuration', execute: cmdConfig },
-        vault: { description: 'Open secure API key vault (🔐)', execute: cmdVault },
+        vault: { description: 'Open secure API key vault', execute: cmdVault },
         encrypt: { description: 'Developer tool: Encrypt API key for public use', execute: cmdEncryptKey },
-        // Web3 Wallet
-        wallet: { description: 'Connect/disconnect Web3 wallet (MetaMask)', execute: cmdWallet },
+        // Solana Wallet
+        wallet: { description: 'Connect/disconnect Solana wallet (Phantom/Solflare)', execute: cmdWallet },
+        solana: { description: 'Solana network tools (overview, fees, spl, validators)', execute: cmdSolana },
         // Bankr API
         swap: { description: 'Swap tokens via Bankr (swap <amount> <from> <to>)', execute: cmdSwap },
         price: { description: 'Check token price (price <symbol>)', execute: cmdPrice },
         balances: { description: 'Check wallet balances via Bankr', execute: cmdBalances },
-        launch: { description: 'Launch a token via Bankr Partner API', execute: cmdLaunch },
+        launch: { description: 'Launch a Solana token via Bankr Partner API', execute: cmdLaunch },
         // System
         clear: { description: 'Clear terminal output', execute: cmdClear },
         neofetch: { description: 'System info display', execute: cmdNeofetch },
@@ -224,15 +226,72 @@
             statusText.textContent = 'LINKED';
             pulseDot.style.background = 'var(--green-bright)';
             pulseDot.style.boxShadow = '0 0 8px var(--green-bright)';
-            document.getElementById('agent-status').textContent = '⚡ LILA AGENT LINKED';
+            document.getElementById('agent-status').textContent = 'LILA AGENT LINKED';
             document.getElementById('agent-status').style.color = 'var(--green-bright)';
         } else {
             statusText.textContent = 'STANDBY';
             pulseDot.style.background = 'var(--text-warning)';
             pulseDot.style.boxShadow = '0 0 8px var(--text-warning)';
-            document.getElementById('agent-status').textContent = '◇ STANDBY';
+            document.getElementById('agent-status').textContent = 'STANDBY';
             document.getElementById('agent-status').style.color = 'var(--text-warning)';
         }
+    }
+
+    function setNetworkStatus(label = 'SOLANA MAINNET') {
+        if (!networkStatusEl) return;
+        networkStatusEl.textContent = label;
+        networkStatusEl.style.color = 'var(--green-bright)';
+    }
+
+    function resetWalletState() {
+        state.walletAddress = null;
+        state.walletCluster = 'mainnet-beta';
+        state.walletProvider = null;
+        state.walletProviderName = null;
+        state.walletListenersBound = false;
+    }
+
+    function getSolanaClusterLabel(cluster = state.walletCluster) {
+        const labels = {
+            solana: 'Solana Mainnet',
+            mainnet: 'Solana Mainnet',
+            'mainnet-beta': 'Solana Mainnet',
+            devnet: 'Solana Devnet',
+            testnet: 'Solana Testnet',
+        };
+        return labels[cluster] || 'Solana Mainnet';
+    }
+
+    function getWalletDisplayLabel() {
+        if (!state.walletAddress) return 'NOT CONNECTED';
+        const providerLabel = state.walletProviderName ? `${state.walletProviderName} ` : '';
+        return `${shortAddr(state.walletAddress)} (${providerLabel}${getSolanaClusterLabel()})`;
+    }
+
+    function normalizeLaunchChain(value = 'solana') {
+        const chain = value.toLowerCase();
+        if (['sol', 'solana', 'mainnet', 'mainnet-beta'].includes(chain)) return 'solana';
+        if (['devnet', 'testnet'].includes(chain)) return chain;
+        return chain;
+    }
+
+    function getSolanaWalletProvider() {
+        const candidates = [
+            window.phantom && window.phantom.solana,
+            window.solflare,
+            window.backpack && window.backpack.solana,
+            window.solana,
+        ].filter(Boolean);
+
+        const provider = candidates[0];
+        if (!provider) return null;
+
+        let label = 'Injected Solana Wallet';
+        if (provider.isPhantom) label = 'Phantom';
+        else if (provider.isSolflare) label = 'Solflare';
+        else if (provider.isBackpack) label = 'Backpack';
+
+        return { provider, label };
     }
 
     // ===== OPENCLAW GATEWAY WEBSOCKET =====
@@ -313,7 +372,7 @@
                     permissions: {},
                     auth: { token: token || '' },
                     locale: navigator.language || 'en-US',
-                    userAgent: 'lila-neural-terminal/4.0',
+                    userAgent: 'lila-solana-terminal/4.0',
                 },
             };
             state.pendingRequests[connectReq.id] = { resolve: connectResolve, type: 'connect' };
@@ -446,8 +505,8 @@
         }
 
         addBlank();
-        addLine('  Welcome, Operator. I am LILA — Autonomous AI Agent #2774.', 'agent-response');
-        addLine('  Operating on Virtuals Protocol via OpenClaw Gateway.', 'agent-response');
+        addLine('  Welcome, Operator. I am LILA - Autonomous AI Agent #2774.', 'agent-response');
+        addLine('  Operating on Solana execution rails via OpenClaw Gateway.', 'agent-response');
 
         if (!state.connected) {
             addLine('  Use "connect <gateway_url>" to establish a neural link,', 'agent-response');
@@ -468,14 +527,12 @@
 
     function cmdHelp() {
         addBlank();
-        addLine('  ╔══════════════════════════════════════════════════════════════╗', 'system');
-        addLine('  ║                   AVAILABLE COMMANDS                        ║', 'info');
-        addLine('  ╚══════════════════════════════════════════════════════════════╝', 'system');
+        addLine('  AVAILABLE COMMANDS', 'info');
         addBlank();
 
         const categories = {
             'AGENT INTERACTION': ['ask', 'connect', 'disconnect', 'status', 'history', 'config'],
-            'WEB3 & DEFI': ['wallet', 'swap', 'price', 'balances', 'launch'],
+            'SOLANA OPS': ['wallet', 'solana', 'swap', 'price', 'balances', 'launch'],
             'SECURITY': ['vault', 'encrypt'],
             'PROTOCOL': ['about', 'services', 'token', 'hire', 'buy'],
             'COMMUNITY': ['socials'],
@@ -483,14 +540,17 @@
         };
 
         for (const [cat, cmds] of Object.entries(categories)) {
-            addLine(`  ▸ ${cat}`, 'warning');
+            addLine(`  ${cat}`, 'warning');
             cmds.forEach(name => {
                 const cmd = COMMANDS[name];
-                if (cmd) addLine(`    <span style="color:var(--purple-bright);min-width:140px;display:inline-block;font-weight:500">${name.padEnd(16)}</span> <span style="color:var(--text-secondary)">${cmd.description}</span>`);
+                if (cmd) {
+                    addLine(`    <span style='color:var(--purple-bright);min-width:140px;display:inline-block;font-weight:500'>${name.padEnd(16)}</span> <span style='color:var(--text-secondary)'>${cmd.description}</span>`);
+                }
             });
             addBlank();
         }
 
+        addLine('  Tip: Try "solana overview" or "solana fees" for Solana-specific guidance.', 'system');
         addLine('  Tip: Type "ask <your question>" to talk to the Lila agent directly.', 'system');
         addBlank();
     }
@@ -498,29 +558,29 @@
     async function cmdAbout() {
         addBlank();
         await showThinking(600);
-        await typeText('  ▸ LILA — Autonomous AI Agent #2774', 'highlight', 18);
+        await typeText('  LILA - Autonomous AI Agent #2774', 'highlight', 18);
         addBlank();
         const lines = [
-            '  Lila is a high-frequency AI growth operator operating on Virtuals Protocol.',
-            '  Powered by OpenClaw — the self-hosted gateway for AI agent connectivity.',
+            '  Lila is a Solana-aligned AI growth operator built for fast-moving on-chain launches.',
+            '  Powered by OpenClaw for secure agent connectivity and Bankr for execution workflows.',
             '',
             '  Core capabilities:',
-            '  • Crypto narrative intelligence & market analysis',
-            '  • Conversion-focused content execution & viral hooks',
-            '  • BTC technical analysis & price scenario modeling',
-            '  • Support/resistance mapping & liquidity zone analysis',
-            '  • Prediction market (Polymarket) edge scanning',
-            '  • Real-time market regime & volatility analysis',
+            '  - Crypto narrative intelligence and market analysis',
+            '  - SPL token launch planning and metadata readiness',
+            '  - Priority fee and compute budget playbooks for busy slots',
+            '  - Validator-aware treasury, liquidity, and timing support',
+            '  - Associated token account hygiene and wallet setup checks',
+            '  - Real-time market regime and volatility analysis',
             '',
             '  Infrastructure:',
-            '  • Agent: Virtuals Protocol ACP #2774',
-            '  • Gateway: OpenClaw (self-hosted, WebSocket protocol v3)',
-            '  • Network: BASE (Ethereum L2)',
-            '  • Token: $LILA',
+            '  - Agent: Virtuals Protocol ACP #2774',
+            '  - Gateway: OpenClaw (self-hosted, WebSocket protocol v3)',
+            '  - Network: Solana Mainnet',
+            '  - Token rail: SPL / Solana-native execution',
         ];
-        for (const l of lines) {
+        for (const line of lines) {
             await sleep(25);
-            addLine(l, l.startsWith('  •') ? 'info' : 'agent-response');
+            addLine(line, line.startsWith('  -') ? 'info' : 'agent-response');
         }
         addBlank();
     }
@@ -616,6 +676,14 @@
     function getSimulatedResponse(message) {
         const lower = message.toLowerCase();
 
+        if (lower.includes('solana') || lower.includes('spl') || lower.includes('jito') || lower.includes('priority')) {
+            return [
+                'Solana flow loaded: focus on SPL structure, wallet readiness, and slot timing.',
+                'Priority fees and compute budgets matter most when launches hit crowded local fee markets.',
+                'Use "solana overview", "solana fees", or "solana spl" for terminal-native guidance.',
+                'Connect to the live agent for current execution plans and route-specific tactics.',
+            ];
+        }
         if (lower.includes('btc') || lower.includes('bitcoin')) {
             return [
                 'BTC is currently in a consolidation phase after recent macro movements.',
@@ -626,8 +694,8 @@
         }
         if (lower.includes('narrative') || lower.includes('trend')) {
             return [
-                'Top trending narratives in the crypto space are shifting rapidly.',
-                'AI agents, RWA tokenization, and L2 scaling solutions remain strong.',
+                'Top trending narratives in crypto are rotating quickly again.',
+                'AI agents, Solana launch infrastructure, and on-chain consumer apps remain active.',
                 'For a real-time daily_narrative_ping with actionable growth tactics,',
                 'connect to the live agent or hire via ACP: hire',
             ];
@@ -635,7 +703,7 @@
         if (lower.includes('polymarket') || lower.includes('prediction')) {
             return [
                 'Prediction markets offer unique alpha opportunities when odds are mispriced.',
-                'I can identify edge scenarios and build detailed entry/exit strategies.',
+                'I can identify edge scenarios and build detailed entry and exit strategies.',
                 'Use polymarket_edge_scan (0.70 aGDP) or polymarket_bet_plan (1.50 aGDP)',
                 'through the Virtuals ACP to access this analysis: hire',
             ];
@@ -644,7 +712,7 @@
         return [
             `I received your query: "${message}"`,
             'As Lila, I specialize in crypto narrative intelligence, market analysis,',
-            'viral content creation, and prediction market strategies.',
+            'Solana launch planning, and execution-aware growth strategy.',
             'Connect to the OpenClaw Gateway for real-time interaction,',
             'or explore my services with: services',
         ];
@@ -682,7 +750,7 @@
     async function cmdStatus() {
         addBlank();
         await showThinking(400);
-        addLine('  ▸ SYSTEM STATUS', 'warning');
+        addLine('  SYSTEM STATUS', 'warning');
         addBlank();
 
         const checks = [
@@ -690,10 +758,11 @@
             ['Gateway Protocol', 'OpenClaw WS v3', 'info'],
             ['Gateway Link', state.connected ? 'CONNECTED' : 'NOT CONNECTED', state.connected ? 'success' : 'warning'],
             ['Gateway URL', CONFIG.gatewayUrl || '(not configured)', CONFIG.gatewayUrl ? 'system' : 'warning'],
-            ['Web3 Wallet', state.walletAddress ? shortAddr(state.walletAddress) + ' (' + getChainName(state.walletChainId) + ')' : 'NOT CONNECTED', state.walletAddress ? 'success' : 'warning'],
+            ['Solana Wallet', getWalletDisplayLabel(), state.walletAddress ? 'success' : 'warning'],
             ['Bankr API', CONFIG.bankrApiKey ? 'CONFIGURED' : 'NOT SET', CONFIG.bankrApiKey ? 'success' : 'warning'],
             ['Bankr Partner', CONFIG.bankrPartnerKey ? 'CONFIGURED' : 'NOT SET', CONFIG.bankrPartnerKey ? 'success' : 'warning'],
-            ['Network', 'BASE (Ethereum L2)', 'info'],
+            ['Cluster', getSolanaClusterLabel(), 'info'],
+            ['Runtime', 'Sealevel + SPL token rail', 'info'],
             ['Uptime', getUptime(), 'info'],
             ['Session', state.sessionCode, 'system'],
             ['Commands', state.commandCount.toString(), 'system'],
@@ -701,14 +770,17 @@
 
         for (const [label, value, cls] of checks) {
             await sleep(80);
-            addLine(`  <span style="color:var(--text-secondary);min-width:180px;display:inline-block">${label}</span> <span class="output-line ${cls}" style="display:inline">${value}</span>`);
+            addLine(`  <span style='color:var(--text-secondary);min-width:180px;display:inline-block'>${label}</span> <span class='output-line ${cls}' style='display:inline'>${value}</span>`);
         }
         addBlank();
 
         if (!state.connected) {
-            addLine('  ⚠ Gateway not connected. Use "connect <url>" to link.', 'warning');
+            addLine('  Gateway not connected. Use "connect <url>" to link.', 'warning');
         } else {
             addLine('  All systems nominal. Neural link active.', 'success');
+        }
+        if (!state.walletAddress) {
+            addLine('  Connect a Solana wallet with "wallet connect" to unlock launch routing.', 'warning');
         }
         addBlank();
     }
@@ -716,25 +788,27 @@
     async function cmdToken() {
         addBlank();
         await showThinking(600);
-        addLine('  ▸ $LILA TOKEN', 'warning');
+        addLine('  $LILA TOKEN', 'warning');
         addBlank();
-        addLine('  <span style="color:var(--purple-bright);font-weight:700;font-size:16px">$LILA</span> — Protocol Fuel Token', 'highlight');
+        addLine('  <span style="color:var(--purple-bright);font-weight:700;font-size:16px">$LILA</span> - Solana protocol fuel', 'highlight');
         addBlank();
 
         const info = [
-            ['Network', 'BASE (Ethereum L2)'],
+            ['Network', 'Solana Mainnet'],
+            ['Token Standard', 'SPL Token'],
             ['Protocol', 'Virtuals Protocol'],
             ['Agent ID', '#2774'],
-            ['Utility', 'Burned on growth operations'],
-            ['Access', 'Alpha tier signal unlocks'],
+            ['Utility', 'Launch coordination, routing, and growth operations'],
+            ['Focus', 'Priority execution plus liquidity awareness'],
         ];
 
-        for (const [k, v] of info) {
-            addLine(`  <span style="color:var(--text-muted);min-width:140px;display:inline-block">${k}</span> <span style="color:var(--text-primary)">${v}</span>`);
+        for (const [key, value] of info) {
+            addLine(`  <span style='color:var(--text-muted);min-width:140px;display:inline-block'>${key}</span> <span style='color:var(--text-primary)'>${value}</span>`);
         }
 
         addBlank();
-        addLine('  ▸ Acquire: <a href="https://app.virtuals.io/prototypes/0xB29798f579701464D37330f6f2A9b5E9b5c4567f" target="_blank">app.virtuals.io</a>', 'info');
+        addLine('  Listing: <a href="https://app.virtuals.io/prototypes/0xB29798f579701464D37330f6f2A9b5E9b5c4567f" target="_blank">app.virtuals.io</a>', 'info');
+        addLine('  Solana migration profile is now reflected throughout the terminal UI.', 'system');
         addBlank();
     }
 
@@ -774,25 +848,26 @@
         const parts = args ? args.trim().split(/\s+/) : [];
         if (parts[0] === 'set' && parts[1] === 'url' && parts[2]) {
             CONFIG.gatewayUrl = parts[2]; localStorage.setItem('lila_gateway_url', parts[2]);
-            addLine('  ▸ Gateway URL saved: ' + parts[2], 'success');
+            addLine('  Gateway URL saved: ' + parts[2], 'success');
         } else if (parts[0] === 'set' && parts[1] === 'token' && parts[2]) {
             CONFIG.gatewayToken = parts[2]; localStorage.setItem('lila_gateway_token', parts[2]);
-            addLine('  ▸ Gateway token saved.', 'success');
+            addLine('  Gateway token saved.', 'success');
         } else if (parts[0] === 'set' && (parts[1] === 'bankr-key' || parts[1] === 'partner-key')) {
-            addLine('  ⚠ API keys should be stored securely. Use "vault" command instead.', 'warning');
+            addLine('  API keys should be stored securely. Use "vault" instead.', 'warning');
             addLine('  Opening Secure Vault...', 'info');
             openVaultUI();
         } else if (parts[0] === 'clear') {
             ['lila_gateway_url', 'lila_gateway_token', 'lila_bankr_key', 'lila_bankr_partner_key'].forEach(k => localStorage.removeItem(k));
             CONFIG.gatewayUrl = ''; CONFIG.gatewayToken = ''; CONFIG.bankrApiKey = ''; CONFIG.bankrPartnerKey = '';
-            addLine('  ▸ All configuration cleared.', 'success');
+            addLine('  All configuration cleared.', 'success');
         } else {
-            addLine('  ▸ CURRENT CONFIGURATION', 'warning'); addBlank();
+            addLine('  CURRENT CONFIGURATION', 'warning'); addBlank();
             addLine(`  Gateway URL:      ${CONFIG.gatewayUrl || '(not set)'}`, CONFIG.gatewayUrl ? 'info' : 'system');
-            addLine(`  Gateway Token:    ${CONFIG.gatewayToken ? '••••••••' : '(not set)'}`, CONFIG.gatewayToken ? 'info' : 'system');
-            addLine(`  Bankr API Key:    ${CONFIG.bankrApiKey ? '••••••••' : '(not set)'}`, CONFIG.bankrApiKey ? 'info' : 'system');
-            addLine(`  Bankr Partner:    ${CONFIG.bankrPartnerKey ? '••••••••' : '(not set)'}`, CONFIG.bankrPartnerKey ? 'info' : 'system');
-            addLine(`  Web3 Wallet:      ${state.walletAddress ? shortAddr(state.walletAddress) : '(not connected)'}`, state.walletAddress ? 'success' : 'system');
+            addLine(`  Gateway Token:    ${CONFIG.gatewayToken ? '********' : '(not set)'}`, CONFIG.gatewayToken ? 'info' : 'system');
+            addLine(`  Bankr API Key:    ${CONFIG.bankrApiKey ? '********' : '(not set)'}`, CONFIG.bankrApiKey ? 'info' : 'system');
+            addLine(`  Bankr Partner:    ${CONFIG.bankrPartnerKey ? '********' : '(not set)'}`, CONFIG.bankrPartnerKey ? 'info' : 'system');
+            addLine(`  Solana Wallet:    ${state.walletAddress ? shortAddr(state.walletAddress) : '(not connected)'}`, state.walletAddress ? 'success' : 'system');
+            addLine(`  Cluster:          ${getSolanaClusterLabel()}`, 'system');
             addLine(`  Protocol:         v${CONFIG.protocolVersion}`, 'system'); addBlank();
             addLine('  Commands:', 'system');
             addLine('    config set url <ws://host:port>     Gateway WebSocket URL', 'system');
@@ -811,38 +886,72 @@
     async function cmdWallet(args) {
         addBlank();
         const sub = args ? args.trim().toLowerCase() : '';
-        if (sub === 'disconnect') {
-            state.walletAddress = null; state.walletChainId = null; state.walletProvider = null;
-            addLine('  ▸ Wallet disconnected.', 'warning'); addBlank(); return;
-        }
-        if (state.walletAddress && sub !== 'connect') {
-            addLine('  ▸ WALLET STATUS', 'warning'); addBlank();
-            addLine(`  Address:   <span style="color:var(--green-bright)">${state.walletAddress}</span>`);
-            addLine(`  Short:     ${shortAddr(state.walletAddress)}`, 'system');
-            addLine(`  Chain ID:  ${state.walletChainId}`, 'info');
-            addLine(`  Network:   ${getChainName(state.walletChainId)}`, 'info'); addBlank();
-            addLine('  Use "wallet disconnect" to disconnect.', 'system'); addBlank(); return;
-        }
-        if (typeof window.ethereum === 'undefined') {
-            addLine('  [ERR] No Web3 wallet detected.', 'error');
-            addLine('  Install MetaMask: <a href="https://metamask.io" target="_blank">metamask.io</a>', 'system'); addBlank(); return;
-        }
-        addLine('  [WALLET] Requesting connection...', 'info');
-        try {
-            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-            const chainId = await window.ethereum.request({ method: 'eth_chainId' });
-            state.walletAddress = accounts[0]; state.walletChainId = parseInt(chainId, 16); state.walletProvider = window.ethereum;
-            addLine(`  ▸ Connected: <span style="color:var(--green-bright)">${shortAddr(state.walletAddress)}</span>`, 'success');
-            addLine(`  ▸ Network: ${getChainName(state.walletChainId)} (${state.walletChainId})`, 'info');
-            window.ethereum.on('accountsChanged', (accs) => { state.walletAddress = accs[0] || null; });
-            window.ethereum.on('chainChanged', (cid) => { state.walletChainId = parseInt(cid, 16); });
-        } catch (e) { addLine('  [ERR] ' + (e.message || 'User rejected connection'), 'error'); }
-        addBlank();
-    }
 
-    function getChainName(id) {
-        const chains = { 1: 'Ethereum', 8453: 'BASE', 137: 'Polygon', 42161: 'Arbitrum', 10: 'Optimism', 56: 'BSC', 43114: 'Avalanche' };
-        return chains[id] || `Chain ${id}`;
+        if (sub === 'disconnect') {
+            if (state.walletProvider && typeof state.walletProvider.disconnect === 'function') {
+                try { await state.walletProvider.disconnect(); } catch (e) { }
+            }
+            resetWalletState();
+            setNetworkStatus();
+            addLine('  Wallet disconnected.', 'warning');
+            addBlank();
+            return;
+        }
+
+        if (state.walletAddress && sub !== 'connect') {
+            addLine('  SOLANA WALLET STATUS', 'warning');
+            addBlank();
+            addLine(`  Address:   <span style='color:var(--green-bright)'>${state.walletAddress}</span>`);
+            addLine(`  Short:     ${shortAddr(state.walletAddress)}`, 'system');
+            addLine(`  Provider:  ${state.walletProviderName || 'Injected Solana Wallet'}`, 'info');
+            addLine(`  Cluster:   ${getSolanaClusterLabel()}`, 'info');
+            addBlank();
+            addLine('  Use "wallet disconnect" to disconnect.', 'system');
+            addBlank();
+            return;
+        }
+
+        const detected = getSolanaWalletProvider();
+        if (!detected) {
+            addLine('  [ERR] No Solana wallet detected.', 'error');
+            addLine('  Install Phantom: <a href="https://phantom.app" target="_blank">phantom.app</a>', 'system');
+            addLine('  Install Solflare: <a href="https://solflare.com" target="_blank">solflare.com</a>', 'system');
+            addBlank();
+            return;
+        }
+
+        const { provider, label } = detected;
+        addLine(`  [WALLET] Requesting ${label} connection...`, 'info');
+        try {
+            const response = await provider.connect();
+            const publicKey = (response && response.publicKey ? response.publicKey : provider.publicKey);
+            const publicKeyString = publicKey && typeof publicKey.toString === 'function' ? publicKey.toString() : '';
+            if (!publicKeyString) throw new Error('Wallet connected but no public key was returned.');
+
+            state.walletAddress = publicKeyString;
+            state.walletCluster = 'mainnet-beta';
+            state.walletProvider = provider;
+            state.walletProviderName = label;
+
+            if (!state.walletListenersBound && typeof provider.on === 'function') {
+                provider.on('accountChanged', (publicKeyValue) => {
+                    state.walletAddress = publicKeyValue && typeof publicKeyValue.toString === 'function' ? publicKeyValue.toString() : null;
+                });
+                provider.on('disconnect', () => {
+                    resetWalletState();
+                    setNetworkStatus();
+                });
+                state.walletListenersBound = true;
+            }
+
+            setNetworkStatus('SOLANA MAINNET');
+            addLine(`  Connected: <span style='color:var(--green-bright)'>${shortAddr(state.walletAddress)}</span>`, 'success');
+            addLine(`  Provider: ${state.walletProviderName}`, 'info');
+            addLine(`  Cluster:  ${getSolanaClusterLabel()}`, 'info');
+        } catch (e) {
+            addLine('  [ERR] ' + (e.message || 'User rejected connection'), 'error');
+        }
+        addBlank();
     }
 
     // ===== BANKR API HELPERS =====
@@ -952,15 +1061,83 @@
         const data = await bankrRequest('GET', '/agent/balances');
         if (!data) { addBlank(); return; }
         if (data.balances && Array.isArray(data.balances)) {
-            addLine('  ▸ WALLET BALANCES', 'warning'); addBlank();
+            addLine('  BALANCES SNAPSHOT', 'warning'); addBlank();
             for (const b of data.balances) {
                 const val = parseFloat(b.balance || b.amount || 0).toFixed(4);
                 const sym = b.symbol || b.token || '???';
                 const chain = b.chain || '';
-                addLine(`  <span style="color:var(--purple-bright);min-width:100px;display:inline-block">${sym.padEnd(10)}</span> <span style="color:var(--green-bright)">${val}</span> <span style="color:var(--text-muted)">${chain}</span>`);
+                addLine(`  <span style='color:var(--purple-bright);min-width:100px;display:inline-block'>${sym.padEnd(10)}</span> <span style='color:var(--green-bright)'>${val}</span> <span style='color:var(--text-muted)'>${chain}</span>`);
             }
         } else {
             addLine('  ' + JSON.stringify(data), 'system');
+        }
+        addBlank();
+    }
+
+    async function cmdSolana(args) {
+        addBlank();
+        const sub = (args || 'overview').trim().toLowerCase();
+        const normalized = sub === 'priority' ? 'fees' : (sub === 'cluster' ? 'validators' : (sub || 'overview'));
+        const sections = {
+            overview: {
+                title: 'SOLANA OVERVIEW',
+                rows: [
+                    ['Cluster', getSolanaClusterLabel()],
+                    ['Runtime', 'Sealevel parallel execution'],
+                    ['Consensus', 'Proof of History + Tower BFT'],
+                    ['Assets', 'SPL Token and Token-2022'],
+                    ['Execution Edge', 'Fast finality plus local fee markets'],
+                    ['Launch Focus', 'Wallet readiness, metadata, liquidity, priority fees'],
+                ],
+            },
+            fees: {
+                title: 'SOLANA FEES',
+                rows: [
+                    ['Signature Fee', 'Baseline fees are charged in lamports per signature'],
+                    ['Priority Fees', 'Raise tips when hot accounts or launches crowd the slot'],
+                    ['Compute Budget', 'Increase CU limit for launch, routing, or bundled actions'],
+                    ['Local Markets', 'High-demand programs can price independently of the global lane'],
+                    ['Rent', 'New accounts and token accounts must remain rent-exempt'],
+                ],
+            },
+            spl: {
+                title: 'SPL TOOLING',
+                rows: [
+                    ['Token Standard', 'SPL Token / Token-2022'],
+                    ['Associated Accounts', 'Each wallet and mint pair usually uses an ATA'],
+                    ['Metadata', 'Metaplex metadata PDAs are the common default'],
+                    ['Decimals', 'Most memecoins use 6 to 9 decimals'],
+                    ['Checklist', 'Mint, metadata, liquidity, treasury, socials, monitoring'],
+                ],
+            },
+            validators: {
+                title: 'VALIDATOR FLOW',
+                rows: [
+                    ['Leader Schedule', 'Slot leaders rotate quickly so timing matters'],
+                    ['QoS', 'Stake-weighted routing affects inclusion quality'],
+                    ['MEV Lane', 'Jito-style tip lanes are common during competitive execution'],
+                    ['Monitoring', 'Watch blockhash age, failed signatures, and CU usage'],
+                    ['Ops Habit', 'Retry fast and avoid account contention during launches'],
+                ],
+            },
+        };
+
+        const section = sections[normalized];
+        if (!section) {
+            addLine('  Usage: solana [overview|fees|spl|validators]', 'warning');
+            addBlank();
+            return;
+        }
+
+        addLine(`  ${section.title}`, 'warning');
+        addBlank();
+        section.rows.forEach(([label, value]) => {
+            addLine(`  <span style='color:var(--text-muted);min-width:180px;display:inline-block'>${label}</span> <span style='color:var(--text-primary)'>${value}</span>`);
+        });
+        addBlank();
+        addLine('  Subcommands: solana overview | solana fees | solana spl | solana validators', 'system');
+        if (state.walletAddress) {
+            addLine(`  Wallet: ${shortAddr(state.walletAddress)} via ${state.walletProviderName || 'Solana wallet'}`, 'success');
         }
         addBlank();
     }
@@ -972,33 +1149,47 @@
 
         if (!pKey) {
             addLine('  [ERR] Bankr Partner key not set.', 'error');
-            addLine('  Open "vault" to configure or admin must set public partner key.', 'system'); addBlank(); return;
+            addLine('  Open "vault" to configure or admin must set public partner key.', 'system');
+            addBlank();
+            return;
         }
         if (!args || !args.trim()) {
             addLine('  Usage: launch <token_name> <symbol> [chain]', 'warning');
-            addLine('  Example: launch "My Token" MTK base', 'system');
-            addLine('  Example: launch "Cool Coin" COOL solana', 'system'); addBlank(); return;
+            addLine('  Example: launch "My Token" MTK', 'system');
+            addLine('  Example: launch "Cool Coin" COOL solana', 'system');
+            addBlank();
+            return;
         }
+
         const match = args.match(/"([^"]+)"\s+(\S+)(?:\s+(\S+))?/) || args.match(/(\S+)\s+(\S+)(?:\s+(\S+))?/);
-        if (!match) { addLine('  [ERR] Could not parse. Use: launch "Name" SYMBOL [chain]', 'error'); addBlank(); return; }
-        const name = match[1], symbol = match[2], chain = (match[3] || 'base').toLowerCase();
+        if (!match) {
+            addLine('  [ERR] Could not parse. Use: launch "Name" SYMBOL [chain]', 'error');
+            addBlank();
+            return;
+        }
+
+        const name = match[1];
+        const symbol = match[2];
+        const chain = normalizeLaunchChain(match[3] || 'solana');
+        const chainLabel = chain === 'solana' ? 'Solana Mainnet' : (['devnet', 'testnet'].includes(chain) ? getSolanaClusterLabel(chain) : chain.toUpperCase());
 
         if (!state.walletAddress) {
-            addLine('  [ERR] Web3 wallet not connected. You need to connect a wallet to receive fees.', 'error');
+            addLine('  [ERR] Solana wallet not connected. Connect a wallet to receive fees.', 'error');
             addLine('  Use: wallet connect', 'system');
-            addBlank(); return;
+            addBlank();
+            return;
         }
 
-        addLine(`  [BANKR] Launching token: ${name} ($${symbol}) on ${chain}...`, 'info');
+        addLine(`  [BANKR] Launching token: ${name} ($${symbol}) on ${chainLabel}...`, 'info');
         await showThinking(1500);
 
         const payload = {
             tokenName: name,
             tokenSymbol: symbol,
-            description: `Token launched via Lila Neural Terminal on ${chain}`,
-            image: "https://lilagent.xyz/lila-logo.png",
+            description: `Token launched via Lila Solana Terminal on ${chainLabel}`,
+            image: 'https://lilagent.xyz/lila-logo.png',
             feeRecipient: {
-                type: "wallet",
+                type: 'wallet',
                 value: state.walletAddress
             },
             simulateOnly: false
@@ -1012,18 +1203,22 @@
             });
             const data = await res.json();
             if (data.success) {
-                addLine('  ▸ Token launched successfully!', 'success');
-                if (data.tokenAddress) addLine(`  Contract: <span style="color:var(--green-bright)">${data.tokenAddress}</span>`);
-                if (data.chain) addLine(`  Chain:    <span style="color:var(--cyan-bright)">${data.chain}</span>`);
-
-                // Add fee distribution display if present
-                if (data.feeDistribution) {
-                    addLine(`  Fees: Creator share routed to your wallet.`, 'info');
+                addLine('  Token launched successfully!', 'success');
+                if (data.tokenAddress) addLine(`  Mint:     <span style='color:var(--green-bright)'>${data.tokenAddress}</span>`);
+                addLine(`  Chain:    <span style='color:var(--cyan-bright)'>${data.chain || chainLabel}</span>`);
+                if ((data.chain || chain).toString().toLowerCase().includes('solana') && data.tokenAddress) {
+                    addLine(`  Solscan:  <a href='https://solscan.io/token/${data.tokenAddress}' target='_blank'>View token</a>`, 'info');
                 }
+                if (data.feeDistribution) {
+                    addLine('  Fees: Creator share routed to your Solana wallet.', 'info');
+                }
+                addLine('  Next: verify metadata, seed liquidity, and monitor priority fees.', 'system');
             } else {
                 addLine('  [ERR] Launch failed: ' + (data.message || data.error || 'Unknown'), 'error');
             }
-        } catch (e) { addLine('  [ERR] ' + e.message, 'error'); }
+        } catch (e) {
+            addLine('  [ERR] ' + e.message, 'error');
+        }
         addBlank();
     }
 
@@ -1046,53 +1241,44 @@
 
     async function cmdNeofetch() {
         addBlank();
-        const miniLogo = [
-            '  ██╗     ██╗██╗      █████╗ ',
-            '  ██║     ██║██║     ██╔══██╗',
-            '  ██║     ██║██║     ███████║',
-            '  ██║     ██║██║     ██╔══██║',
-            '  ███████╗██║███████╗██║  ██║',
-            '  ╚══════╝╚═╝╚══════╝╚═╝  ╚═╝',
-        ];
-
+        const miniLogo = ASCII_LOGO.map(line => '  ' + line);
+        const walletLine = state.walletAddress ? `${shortAddr(state.walletAddress)} via ${state.walletProviderName || 'wallet'}` : 'NOT CONNECTED';
         const info = [
-            `<span style="color:var(--purple-bright);font-weight:700">lila</span>@<span style="color:var(--cyan-bright)">neural</span>`,
-            '──────────────────',
-            `<span style="color:var(--purple-bright)">OS:</span>        Neural Terminal v4.0`,
-            `<span style="color:var(--purple-bright)">Host:</span>      OpenClaw Gateway`,
-            `<span style="color:var(--purple-bright)">Agent:</span>     Virtuals ACP #2774`,
-            `<span style="color:var(--purple-bright)">Network:</span>   BASE (Ethereum L2)`,
-            `<span style="color:var(--purple-bright)">Link:</span>      ${state.connected ? 'CONNECTED' : 'STANDBY'}`,
-            `<span style="color:var(--purple-bright)">Wallet:</span>    ${state.walletAddress ? shortAddr(state.walletAddress) : 'NOT CONNECTED'}`,
-            `<span style="color:var(--purple-bright)">Bankr:</span>     ${CONFIG.bankrApiKey ? 'ACTIVE' : 'NOT SET'}`,
-            `<span style="color:var(--purple-bright)">Uptime:</span>    ${getUptime()}`,
-            `<span style="color:var(--purple-bright)">Shell:</span>     lila-sh 4.0`,
-            `<span style="color:var(--purple-bright)">Protocol:</span>  OpenClaw WS v3`,
-            `<span style="color:var(--purple-bright)">Session:</span>   ${state.sessionCode}`,
+            `<span style='color:var(--purple-bright);font-weight:700'>lila</span>@<span style='color:var(--cyan-bright)'>solana</span>`,
+            '------------------',
+            `<span style='color:var(--purple-bright)'>OS:</span>        Solana Terminal v4.0`,
+            `<span style='color:var(--purple-bright)'>Host:</span>      OpenClaw Gateway`,
+            `<span style='color:var(--purple-bright)'>Agent:</span>     Virtuals ACP #2774`,
+            `<span style='color:var(--purple-bright)'>Cluster:</span>   ${getSolanaClusterLabel()}`,
+            `<span style='color:var(--purple-bright)'>Runtime:</span>   Sealevel + SPL`,
+            `<span style='color:var(--purple-bright)'>Link:</span>      ${state.connected ? 'CONNECTED' : 'STANDBY'}`,
+            `<span style='color:var(--purple-bright)'>Wallet:</span>    ${walletLine}`,
+            `<span style='color:var(--purple-bright)'>Bankr:</span>     ${CONFIG.bankrApiKey ? 'ACTIVE' : 'NOT SET'}`,
+            `<span style='color:var(--purple-bright)'>Uptime:</span>    ${getUptime()}`,
+            `<span style='color:var(--purple-bright)'>Shell:</span>     lila-sh sol 4.0`,
+            `<span style='color:var(--purple-bright)'>Protocol:</span>  OpenClaw WS v3`,
+            `<span style='color:var(--purple-bright)'>Session:</span>   ${state.sessionCode}`,
             '',
-            '<span style="background:var(--text-error);color:var(--text-error)">███</span><span style="background:var(--text-warning);color:var(--text-warning)">███</span><span style="background:var(--text-success);color:var(--text-success)">███</span><span style="background:var(--text-info);color:var(--text-info)">███</span><span style="background:var(--purple-bright);color:var(--purple-bright)">███</span><span style="background:var(--text-primary);color:var(--text-primary)">███</span>',
+            '<span style="background:var(--purple-bright);color:var(--purple-bright)">***</span><span style="background:var(--cyan-bright);color:var(--cyan-bright)">***</span><span style="background:var(--green-bright);color:var(--green-bright)">***</span><span style="background:var(--text-primary);color:var(--text-primary)">***</span>',
         ];
 
         const maxLines = Math.max(miniLogo.length, info.length);
         for (let i = 0; i < maxLines; i++) {
-            const logoLine = miniLogo[i] || ''.padEnd(31);
+            const logoLine = miniLogo[i] || ''.padEnd(35);
             const infoLine = info[i] || '';
-            if (i < miniLogo.length) {
-                addLine(`<span style="color:var(--purple-bright)">${logoLine}</span>    ${infoLine}`);
-            } else {
-                addLine(`${''.padEnd(31)}    ${infoLine}`);
-            }
+            addLine(`<span style='color:var(--purple-bright)'>${logoLine}</span>    ${infoLine}`);
         }
         addBlank();
     }
 
     function cmdWhoami() {
         addBlank();
-        addLine('  operator@lila-neural-terminal', 'info');
+        addLine('  operator@lila-solana-terminal', 'info');
         addLine(`  Session: ${state.sessionCode}`, 'system');
         addLine(`  Uptime: ${getUptime()}`, 'system');
         addLine(`  Commands: ${state.commandCount}`, 'system');
         addLine(`  Wallet: ${state.walletAddress ? shortAddr(state.walletAddress) : 'not connected'}`, state.walletAddress ? 'success' : 'system');
+        addLine(`  Cluster: ${getSolanaClusterLabel()}`, 'system');
         addLine(`  Gateway: ${state.connected ? 'LINKED' : 'STANDBY'}`, state.connected ? 'success' : 'warning');
         addBlank();
     }
@@ -1162,7 +1348,7 @@
                 addLine(`  pong from gateway: time=${ms}ms`, 'success');
             }
         } else {
-            addLine('  PING lila-neural-core (simulated):', 'system');
+            addLine('  PING lila-solana-core (simulated):', 'system');
             for (let i = 0; i < 4; i++) {
                 await sleep(300 + Math.random() * 200);
                 const ms = (Math.random() * 20 + 5).toFixed(1);
@@ -1207,6 +1393,7 @@
         state.sessionStart = Date.now();
         state.commandCount = 0;
         state.sessionCode = generateSessionId();
+        sessionIdEl.textContent = 'SID:' + state.sessionCode;
         state.history = [];
         state.historyIndex = -1;
         state.chatHistory = [];
@@ -1246,7 +1433,7 @@
         state.historyIndex = -1;
         if (state.history.length > 100) state.history.pop();
 
-        addLine(`  <span style="color:var(--purple-bright)">lila@neural</span><span style="color:var(--text-muted)">:</span><span style="color:var(--cyan-bright)">~</span><span style="color:var(--green-bright);font-weight:700">$</span> ${escapeHtml(trimmed)}`, 'command-echo');
+        addLine(`  <span style="color:var(--purple-bright)">lila@solana</span><span style="color:var(--text-muted)">:</span><span style="color:var(--cyan-bright)">~</span><span style="color:var(--green-bright);font-weight:700">$</span> ${escapeHtml(trimmed)}`, 'command-echo');
 
         const parts = trimmed.split(/\s+/);
         const cmd = parts[0].toLowerCase();
@@ -1384,7 +1571,7 @@
 
     function cmdVault() {
         addBlank();
-        addLine('  🔐 Opening Secure Vault...', 'info');
+        addLine('  Opening Secure Vault...', 'info');
         addBlank();
         openVaultUI();
     }
@@ -1425,7 +1612,7 @@
                 const target = document.getElementById(btn.dataset.target);
                 if (target) {
                     target.type = target.type === 'password' ? 'text' : 'password';
-                    btn.textContent = target.type === 'password' ? '👁' : '🔒';
+                    btn.textContent = target.type === 'password' ? 'SHOW' : 'HIDE';
                 }
             });
         });
@@ -1477,6 +1664,7 @@
     async function init() {
         initVaultUI();
         await loadConfigFromVault();
+        setNetworkStatus();
         boot();
     }
     init();
