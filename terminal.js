@@ -77,6 +77,7 @@
         { text: '  [BOOT] OpenClaw Gateway protocol v3 ........................ OK', cls: 'success', delay: 150 },
         { text: '  [BOOT] Virtuals Protocol ACP layer ......................... OK', cls: 'success', delay: 180 },
         { text: '  [BOOT] Agent Commerce Protocol (ACP #2774) ................. OK', cls: 'success', delay: 120 },
+        { text: '  [BOOT] Connecting to Solana network ........................ OK', cls: 'success', delay: 120 },
         { text: '  [BOOT] Bankr Partner API layer ............................. OK', cls: 'success', delay: 160 },
         { text: '  [BOOT] Solana wallet adapter ............................... OK', cls: 'success', delay: 140 },
         { text: '  [BOOT] Initializing WebSocket client ....................... OK', cls: 'success', delay: 200 },
