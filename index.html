@@ -1,144 +1,21 @@
 <!DOCTYPE html>
-<html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LILA - Solana Neural Terminal v4.0</title>
-    <meta name="description"
-        content="Lila Solana Neural Terminal - Direct interface to Lila AI Agent #2774 with Solana-native workflows, OpenClaw connectivity, Bankr automation, and real-time crypto intelligence.">
-    <meta name="keywords" content="Lila, Solana, AI Agent, Terminal, OpenClaw, SPL, Autonomous, Neural, Growth Protocol">
-    <meta name="theme-color" content="#05070f">
-    <link rel="icon" type="image/svg+xml"
-        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%2305070f'/><text x='50' y='66' text-anchor='middle' font-size='56' font-family='Arial' fill='%2314f195'>S</text></svg>">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<html lang="en" class="dark scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LILA — Neural Terminal v4.0</title>
+    <meta name="description" content="LILA - Autonomous AI Agent with x402 Micropayments on Stellar" />
+    <link rel="icon" type="image/svg+xml" href="/lila-website/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap"
-        rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=solana-20260316-1">
-</head>
-
-<body>
-    <div id="scanline-overlay"></div>
-    <div id="crt-flicker"></div>
-
-    <div id="terminal-container">
-        <header id="terminal-header">
-            <div id="header-left">
-                <span class="dot red"></span>
-                <span class="dot yellow"></span>
-                <span class="dot green"></span>
-                <span id="terminal-title">LILA SOLANA TERMINAL v4.0</span>
-            </div>
-            <div id="header-center">
-                <span id="connection-status">
-                    <span class="pulse-dot"></span>
-                    <span id="status-text">CONNECTED</span>
-                </span>
-            </div>
-            <div id="header-right">
-                <span id="system-clock"></span>
-                <span id="session-id"></span>
-            </div>
-        </header>
-
-        <main id="terminal-body">
-            <div id="terminal-output"></div>
-
-            <div id="input-line">
-                <span id="prompt-prefix">lila@solana</span>
-                <span id="prompt-separator">:</span>
-                <span id="prompt-path">~</span>
-                <span id="prompt-symbol">$</span>
-                <input type="text" id="terminal-input" autocomplete="off" autocorrect="off" autocapitalize="off"
-                    spellcheck="false" autofocus>
-            </div>
-        </main>
-
-        <footer id="terminal-footer">
-            <div id="footer-left">
-                <span class="footer-item" id="agent-status">STANDBY</span>
-                <span class="footer-divider">|</span>
-                <span class="footer-item" id="model-info">ACP #2774 | OpenClaw</span>
-            </div>
-            <div id="footer-right">
-                <span class="footer-item" id="network-status">SOLANA MAINNET</span>
-                <span class="footer-divider">|</span>
-                <span class="footer-item" id="latency">LATENCY: <span id="latency-value">12ms</span></span>
-                <span class="footer-divider">|</span>
-                <span class="footer-item">TYPE <kbd>help</kbd> FOR COMMANDS</span>
-            </div>
-        </footer>
-    </div>
-
-    <div id="vault-overlay" class="vault-hidden">
-        <div id="vault-panel">
-            <div id="vault-header">
-                <span id="vault-title">SECURE VAULT - API Configuration</span>
-                <button id="vault-close" title="Close (Esc)">X</button>
-            </div>
-            <div id="vault-body">
-                <div class="vault-notice">
-                    <span class="vault-lock-icon">[LOCK]</span>
-                    Keys are encrypted and stored locally in your browser. Never transmitted to any server.
-                </div>
-
-                <div class="vault-section">
-                    <div class="vault-section-title">BANKR PARTNER API</div>
-                    <div class="vault-field">
-                        <label for="vault-bankr-key">API Key</label>
-                        <div class="vault-input-wrap">
-                            <input type="password" id="vault-bankr-key" placeholder="Enter Bankr API key..."
-                                autocomplete="off" spellcheck="false">
-                            <button class="vault-toggle-vis" data-target="vault-bankr-key" title="Show/Hide">SHOW</button>
-                        </div>
-                        <span class="vault-field-hint">From <a href="https://bankr.bot/api"
-                                target="_blank">bankr.bot/api</a> - Enable Agent API access</span>
-                    </div>
-                    <div class="vault-field">
-                        <label for="vault-partner-key">Partner Key</label>
-                        <div class="vault-input-wrap">
-                            <input type="password" id="vault-partner-key" placeholder="bk_..." autocomplete="off"
-                                spellcheck="false">
-                            <button class="vault-toggle-vis" data-target="vault-partner-key"
-                                title="Show/Hide">SHOW</button>
-                        </div>
-                        <span class="vault-field-hint">Partner Deploy API key for Solana token launching</span>
-                    </div>
-                </div>
-
-                <div class="vault-section">
-                    <div class="vault-section-title">OPENCLAW GATEWAY</div>
-                    <div class="vault-field">
-                        <label for="vault-gw-url">Gateway URL</label>
-                        <div class="vault-input-wrap">
-                            <input type="text" id="vault-gw-url" placeholder="ws://localhost:18789" autocomplete="off"
-                                spellcheck="false">
-                        </div>
-                        <span class="vault-field-hint">WebSocket endpoint of your OpenClaw Gateway</span>
-                    </div>
-                    <div class="vault-field">
-                        <label for="vault-gw-token">Gateway Token</label>
-                        <div class="vault-input-wrap">
-                            <input type="password" id="vault-gw-token" placeholder="Gateway auth token..."
-                                autocomplete="off" spellcheck="false">
-                            <button class="vault-toggle-vis" data-target="vault-gw-token" title="Show/Hide">SHOW</button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="vault-actions">
-                    <button id="vault-save" class="vault-btn vault-btn-primary">SAVE AND ENCRYPT</button>
-                    <button id="vault-clear" class="vault-btn vault-btn-danger">CLEAR ALL</button>
-                </div>
-
-                <div id="vault-status" class="vault-status-hidden"></div>
-            </div>
-        </div>
-    </div>
-
-    <script src="terminal.js?v=solana-20260316-1"></script>
-</body>
-
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@300;400;500;700&family=Orbitron:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <script type="module" crossorigin src="/lila-website/assets/index-F2TaOUcC.js"></script>
+    <link rel="stylesheet" crossorigin href="/lila-website/assets/index-BkSu5E9u.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
 </html>
